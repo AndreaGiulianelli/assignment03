@@ -66,5 +66,7 @@ object SimulationViewer:
       }
 
     override def simulationEnd(): Unit =
-      start.setEnabled(false)
-      stop.setEnabled(false)
+      SwingUtilities.invokeLater { () =>
+        start.setEnabled(false)
+        stop.setEnabled(false)
+      }
