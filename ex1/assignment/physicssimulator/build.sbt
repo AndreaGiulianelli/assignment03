@@ -7,6 +7,8 @@ lazy val root = (project in file("."))
     name := "physicssimulator",
     libraryDependencies ++= Seq(
       akkaGroup %% "akka-actor-typed" % akkaVersion,
-      "ch.qos.logback" % "logback-classic" % "1.2.3"
+      "ch.qos.logback" % "logback-classic" % "1.2.3",
+      "dev.optics" %% "monocle-core" % "3.1.0",
+      "dev.optics" %% "monocle-macro" % "3.1.0"
     )
   )
