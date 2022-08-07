@@ -15,9 +15,15 @@ object ActorBody:
   enum Message:
     case UpdatedPos(pos: P2d)
 
-  def apply(body: Body, simulation: ActorRef[Message], actorBodies: Set[ActorRef[Command]]): Behavior[Command] =
+  def apply(
+      body: Body,
+      simulation: ActorRef[Message],
+      actorBodies: Set[ActorRef[Command]],
+      dt: Double,
+      boundary: Boundary
+  ): Behavior[Command] =
     Behaviors.setup { ctx =>
-      ???
+      ActorBody(body, simulation, actorBodies, dt, boundary)
     }
 
 class ActorBody(
