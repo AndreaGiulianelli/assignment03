@@ -22,7 +22,9 @@ object Simulation:
     case Update(iteration: Int, positions: Seq[P2d])
     case Terminated
 
-  def apply(coordinator: ActorRef[Message]): Behavior[Command] = ???
+  def apply(coordinator: ActorRef[Message]): Behavior[Command] = Behaviors.setup { ctx =>
+    Simulation(coordinator)
+  }
 
 case class Simulation(
     coordinator: ActorRef[Simulation.Message],
