@@ -7,7 +7,7 @@ import akka.actor.typed.scaladsl.Behaviors
 
 object ActorBody:
   trait Command
-  case class Start() extends Command
+  case class Start(actorBodies: Set[ActorRef[Command]]) extends Command
   case class PosUpdated() extends Command
   private case class State(pos: P2d, mass: Double) extends Command
   private case class ForceUpdated() extends Command
@@ -18,20 +18,20 @@ object ActorBody:
   def apply(
       body: Body,
       simulation: ActorRef[Message],
-      actorBodies: Set[ActorRef[Command]],
       dt: Double,
-      boundary: Boundary
+      boundary: Boundary,
+      actorBodies: Set[ActorRef[Command]] = Set()
   ): Behavior[Command] =
     Behaviors.setup { ctx =>
-      ActorBody(body, simulation, actorBodies, dt, boundary)
+      ActorBody(body, simulation, dt, boundary, actorBodies)
     }
 
-class ActorBody(
+case class ActorBody(
     private var body: Body,
     simulation: ActorRef[ActorBody.Message],
-    actorBodies: Set[ActorRef[ActorBody.Command]],
     dt: Double,
-    boundary: Boundary
+    boundary: Boundary,
+    actorBodies: Set[ActorRef[ActorBody.Command]]
 ):
   import ActorBody.*
   import monocle.syntax.all._
@@ -40,9 +40,9 @@ class ActorBody(
     Behaviors.withStash(100) { stash =>
       Behaviors.receive { (ctx, msg) =>
         msg match
-          case Start() =>
+          case Start(bodyRefs) =>
             sendToAll(State(body.pos, body.mass))
-            stash.unstashAll(force())
+            stash.unstashAll(this.focus(_.actorBodies).replace(bodyRefs).force())
           case other =>
             stash.stash(other)
             Behaviors.same
