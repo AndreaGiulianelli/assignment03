@@ -31,10 +31,10 @@ object Body:
   private val repulsiveConst = 0.01
   private val frictionConst = 1
   extension (b: Body)
-    def distanceFrom(other: Body): Double =
-      val dx = b.pos.x - other.pos.x
-      val dy = b.pos.y - other.pos.y
+    def distanceFrom(pos: P2d): Double =
+      val dx = b.pos.x - pos.x
+      val dy = b.pos.y - pos.y
       Math.sqrt(dx * dx + dy * dy)
-    def repulsiveForceBy(other: Body): Option[V2d] = b.distanceFrom(other) match
-      case d if d > 0 => V2d(other.pos, b.pos).norm().map(_ * other.mass * repulsiveConst / (d * d))
+    def repulsiveForceBy(pos: P2d, mass: Double): Option[V2d] = b.distanceFrom(pos) match
+      case d if d > 0 => V2d(pos, b.pos).norm().map(_ * mass * repulsiveConst / (d * d))
       case _ => None
