@@ -1,6 +1,6 @@
 package model
 
-case class V2d(x: Double, y: Double)
+case class V2d(x: Double = 0, y: Double = 0)
 
 object V2d:
   def apply(from: P2d, to: P2d): V2d = V2d(to.x - from.x, to.y - from.y)
