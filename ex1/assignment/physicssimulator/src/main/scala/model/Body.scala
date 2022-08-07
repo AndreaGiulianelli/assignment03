@@ -1,7 +1,7 @@
 package model
 import monocle.syntax.all.*
 
-case class Body(id: Int, pos: P2d, acc: V2d, vel: V2d, mass: Double):
+case class Body(id: Int, pos: P2d = P2d(), acc: V2d = V2d(), vel: V2d = V2d(), mass: Double):
   import model.Body.frictionConst
   def accelerate(force: V2d): Body = this.focus(_.acc).replace(force / mass)
   def updateVelocity(dt: Double): Body = this.focus(_.vel).modify(_ + acc * dt)
