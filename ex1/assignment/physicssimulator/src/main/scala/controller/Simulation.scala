@@ -23,14 +23,14 @@ object Simulation:
     case Terminated
 
   def apply(coordinator: ActorRef[Message]): Behavior[Command] = Behaviors.setup { ctx =>
-    Simulation(coordinator)
+    new Simulation(coordinator).created
   }
 
 case class Simulation(
     coordinator: ActorRef[Simulation.Message],
     maxIterations: Int = 10,
     bodyRefs: Set[ActorRef[ActorBody.Command]] = Set(),
-    iteration: Int = 0
+    iteration: Int = 1
 ):
   import Simulation.Command
   import Simulation.Message
@@ -48,6 +48,7 @@ case class Simulation(
             body = Body(id = i, pos = P2d(x, y), mass = DEFAULT_MASS)
             bodyRef = ctx.spawn(ActorBody(body, adapter, DELTA_TIME, boundary), s"body-$i")
           yield bodyRef
+        for actorRef <- actorRefs do actorRef ! ActorBody.Start(actorRefs.toSet)
         this
           .focus(_.maxIterations)
           .replace(iterations)
