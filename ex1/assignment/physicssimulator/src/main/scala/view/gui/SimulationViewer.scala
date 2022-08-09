@@ -1,7 +1,8 @@
 package view.gui
 
+import akka.actor.typed.ActorRef
+import controller.Coordinator
 import model.{Boundary, P2d}
-
 import java.awt.event.{ActionEvent, WindowAdapter, WindowEvent}
 import java.awt.{BorderLayout, LayoutManager}
 import java.util
@@ -14,8 +15,11 @@ trait SimulationViewer:
   def simulationEnd(): Unit
 
 object SimulationViewer:
-  def apply(w: Int, h: Int): SimulationViewer = SimulationViewerImpl(w, h)
-  private class SimulationViewerImpl(w: Int, h: Int) extends JFrame with SimulationViewer:
+  def apply(w: Int, h: Int, coordinator: ActorRef[Coordinator.Command]): SimulationViewer =
+    SimulationViewerImpl(w, h, coordinator)
+  private class SimulationViewerImpl(w: Int, h: Int, coordinator: ActorRef[Coordinator.Command])
+      extends JFrame
+      with SimulationViewer:
     val panel = VisualiserPanel(w, h)
     val start = JButton("Start")
     val stop = JButton("Stop")
@@ -37,16 +41,16 @@ object SimulationViewer:
 
     start.setEnabled(true)
     start.addActionListener { (e: ActionEvent) =>
+      coordinator ! Coordinator.Command.Start
       start.setEnabled(false)
-      // todo: do with start
       start.setText("Resume")
       stop.setEnabled(true)
     }
 
     stop.setEnabled(false)
     stop.addActionListener { (e: ActionEvent) =>
+      coordinator ! Coordinator.Command.Stop
       start.setEnabled(true)
-      // todo: do with stop
       stop.setEnabled(false)
     }
     this.addWindowListener(new WindowAdapter():
