@@ -23,7 +23,7 @@ object ActorBody:
       actorBodies: Set[ActorRef[Command]] = Set()
   ): Behavior[Command] =
     Behaviors.setup { ctx =>
-      ActorBody(body, simulation, dt, boundary, actorBodies)
+      new ActorBody(body, simulation, dt, boundary, actorBodies).created
     }
 
 case class ActorBody(
@@ -49,7 +49,7 @@ case class ActorBody(
       }
     }
 
-  private def force(repulsiveForce: V2d = V2d(0, 0), currentResponses: Int = 0): Behavior[Command] =
+  private def force(repulsiveForce: V2d = V2d(), currentResponses: Int = 0): Behavior[Command] =
     Behaviors.withStash(100) { stash =>
       Behaviors.receive { (ctx, msg) =>
         msg match
@@ -72,8 +72,8 @@ case class ActorBody(
       Behaviors.receive { (ctx, msg) =>
         msg match
           case ForceUpdated() =>
-            val currentResponseUpdated = currentResponses + 1
-            if currentResponseUpdated == actorBodies.size then
+            val currentResponsesUpdated = currentResponses + 1
+            if currentResponsesUpdated == actorBodies.size then
               body = body
                 .updateVelocity(dt)
                 .updatePos(dt)
@@ -81,7 +81,7 @@ case class ActorBody(
               simulation ! Message.UpdatedPos(body.pos)
               sendToAll(PosUpdated())
               stash.unstashAll(waitPos())
-            else waitForces(currentResponses)
+            else waitForces(currentResponsesUpdated)
           case other =>
             stash.stash(other)
             Behaviors.same
@@ -93,10 +93,11 @@ case class ActorBody(
       Behaviors.receive { (ctx, msg) =>
         msg match
           case PosUpdated() =>
-            val currentResponseUpdated = currentResponses + 1
-            if currentResponseUpdated == actorBodies.size + 1 then // + 1 consider the simulation ack
+            val currentResponsesUpdated = currentResponses + 1
+            if currentResponsesUpdated == actorBodies.size + 1 then // + 1 consider the simulation ack
+              sendToAll(State(body.pos, body.mass))
               stash.unstashAll(force())
-            else waitPos(currentResponseUpdated)
+            else waitPos(currentResponsesUpdated)
           case other =>
             stash.stash(other)
             Behaviors.same
