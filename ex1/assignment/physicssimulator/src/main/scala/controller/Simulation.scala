@@ -32,7 +32,8 @@ case class Simulation(
     maxIterations: Int = 10,
     bodyRefs: Set[ActorRef[ActorBody.Command]] = Set(),
     iteration: Int = 1,
-    virtualTime: Double = 0
+    virtualTime: Double = 0,
+    startTime: Long = 0
 ):
   import Simulation.Command
   import Simulation.Message
@@ -50,12 +51,15 @@ case class Simulation(
           body = Body(id = i, pos = P2d(x, y), mass = DEFAULT_MASS)
           bodyRef = ctx.spawn(ActorBody(body, adapter, DELTA_TIME, boundary), s"body-$i")
         yield bodyRef
+      val start = System.currentTimeMillis()
       Util.sendToAll(actorRefs.toSet)(ActorBody.Start(actorRefs.toSet))
       this
         .focus(_.maxIterations)
         .replace(iterations)
         .focus(_.bodyRefs)
         .replace(actorRefs.toSet)
+        .focus(_.startTime)
+        .replace(start)
         .updating()
   }
 
@@ -71,7 +75,10 @@ case class Simulation(
   private def positionsAndIterationCheck(positions: Seq[P2d]): Behavior[Command] =
     if positions.size == bodyRefs.size then
       coordinator ! Message.Update(iteration, virtualTime, positions)
-      if iteration == maxIterations then coordinator ! Message.Terminated
+      if iteration == maxIterations then
+        coordinator ! Message.Terminated
+        val stopTime: Long = System.currentTimeMillis()
+        println(s"Time: ${stopTime - startTime} ms")
       else Util.sendToAll(bodyRefs)(ActorBody.PosUpdated())
       this
         .focus(_.iteration)
