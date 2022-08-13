@@ -41,9 +41,11 @@ object SimulationViewer:
 
     start.setEnabled(true)
     start.addActionListener { (e: ActionEvent) =>
-      coordinator ! Coordinator.Command.Start
       start.setEnabled(false)
-      start.setText("Resume")
+      if start.getText == "Resume" then coordinator ! Coordinator.Command.Resume
+      else
+        coordinator ! Coordinator.Command.Start
+        start.setText("Resume")
       stop.setEnabled(true)
     }
 
