@@ -10,12 +10,12 @@ import controller.utils.Util
 object ActorBody:
   trait Command
   case class Start(actorBodies: Set[ActorRef[Command]]) extends Command
-  case class PosUpdated(iteration: Int) extends Command
-  private case class State(iteration: Int, pos: P2d, mass: Double) extends Command
-  private case class ForceUpdated(iteration: Int) extends Command
+  case class PosUpdated() extends Command
+  private case class State(pos: P2d, mass: Double) extends Command
+  private case class ForceUpdated() extends Command
 
   enum Message:
-    case UpdatedPos(iteration: Int, pos: P2d)
+    case UpdatedPos(pos: P2d)
 
   def apply(
       body: Body,
@@ -38,7 +38,6 @@ case class ActorBody(
   import ActorBody.*
   import monocle.syntax.all._
 
-  private var iteration = 1
   private var currentResponses = 0
   private var repulsiveForce = V2d()
 
@@ -49,7 +48,7 @@ case class ActorBody(
           case Start(bodyRefs) =>
             ctx.log.info(s"BODY ACTOR - ${body.id}: received start")
             val refs = bodyRefs - ctx.self
-            Util.sendToAll(refs)(State(1, body.pos, body.mass))
+            Util.sendToAll(refs)(State(body.pos, body.mass))
             stash.unstashAll(this.focus(_.actorBodies).replace(refs).force())
           case other =>
             stash.stash(other)
@@ -81,14 +80,14 @@ case class ActorBody(
     Behaviors.withStash(actorBodies.size) { stash =>
       Behaviors.receive { (ctx, msg) =>
         msg match
-          case State(it, pos, mass) if it == iteration =>
+          case State(pos, mass) =>
             //ctx.log.info(s"BODY ACTOR - ${body.id}: received STATE")
             currentResponses = currentResponses + 1
             repulsiveForce = repulsiveForce + body.repulsiveForceBy(pos, mass).getOrElse(V2d())
             if currentResponses == actorBodies.size then
               body = body.accelerate(repulsiveForce + body.currentFrictionForce)
-              Util.sendToAll(actorBodies)(ForceUpdated(iteration))
-              ctx.log.info(s"BODY ACTOR - ${body.id}: it: $iteration force updated")
+              Util.sendToAll(actorBodies)(ForceUpdated())
+              ctx.log.info(s"BODY ACTOR - ${body.id}: force updated")
               currentResponses = 0
               repulsiveForce = V2d()
               stash.unstashAll(waitForces())
@@ -126,7 +125,7 @@ case class ActorBody(
     Behaviors.withStash(actorBodies.size) { stash =>
       Behaviors.receive { (ctx, msg) =>
         msg match
-          case ForceUpdated(it) if it == iteration =>
+          case ForceUpdated() =>
             //ctx.log.info(s"BODY ACTOR - ${body.id}: force barrier")
             currentResponses = currentResponses + 1
             if currentResponses == actorBodies.size then
@@ -134,9 +133,9 @@ case class ActorBody(
                 .updateVelocity(dt)
                 .updatePos(dt)
                 .checkAndSolveBoundaryCollision(boundary)
-              simulation ! Message.UpdatedPos(iteration, body.pos)
-              Util.sendToAll(actorBodies)(PosUpdated(iteration))
-              ctx.log.info(s"BODY ACTOR - ${body.id}: it: $iteration position updated")
+              simulation ! Message.UpdatedPos(body.pos)
+              Util.sendToAll(actorBodies)(PosUpdated())
+              ctx.log.info(s"BODY ACTOR - ${body.id}: position updated")
               currentResponses = 0
               stash.unstashAll(waitPos())
             else Behaviors.same
@@ -169,13 +168,12 @@ case class ActorBody(
     Behaviors.withStash(actorBodies.size) { stash =>
       Behaviors.receive { (ctx, msg) =>
         msg match
-          case PosUpdated(it) if it == iteration =>
+          case PosUpdated() =>
             //ctx.log.info(s"BODY ACTOR - ${body.id}: position barrier")
             currentResponses = currentResponses + 1
             if currentResponses == actorBodies.size + 1 then // + 1 consider the simulation ack
-              ctx.log.info(s"BODY ACTOR - ${body.id}, it: $iteration: new iter")
-              iteration = iteration + 1
-              Util.sendToAll(actorBodies)(State(iteration, body.pos, body.mass))
+              ctx.log.info(s"BODY ACTOR - ${body.id}: new iter")
+              Util.sendToAll(actorBodies)(State(body.pos, body.mass))
               currentResponses = 0
               stash.unstashAll(force())
             else Behaviors.same

@@ -61,7 +61,7 @@ case class Simulation(
 
   private def updating(positions: Seq[P2d] = Seq()): Behavior[Command] =
     Behaviors.receivePartial {
-      case (ctx, Command.UpdatedBodyPosition(ActorBody.Message.UpdatedPos(iteration, pos))) =>
+      case (ctx, Command.UpdatedBodyPosition(ActorBody.Message.UpdatedPos(pos))) =>
         ctx.log.info("SIMULATION ACTOR: received update from body - " + iteration)
         val positionsUpdated = pos +: positions
         positionsAndIterationCheck(positionsUpdated)
@@ -72,7 +72,7 @@ case class Simulation(
     if positions.size == bodyRefs.size then
       coordinator ! Message.Update(iteration, virtualTime, positions)
       if iteration == maxIterations then coordinator ! Message.Terminated
-      else for bodyRef <- bodyRefs do bodyRef ! ActorBody.PosUpdated(iteration)
+      else for bodyRef <- bodyRefs do bodyRef ! ActorBody.PosUpdated()
       this
         .focus(_.iteration)
         .modify(_ + 1)
@@ -82,7 +82,7 @@ case class Simulation(
     else updating(positions)
 
   private def stop(snapshot: Seq[P2d]): Behavior[Command] = Behaviors.receivePartial {
-    case (ctx, Command.UpdatedBodyPosition(ActorBody.Message.UpdatedPos(iteration, pos))) =>
+    case (ctx, Command.UpdatedBodyPosition(ActorBody.Message.UpdatedPos(pos))) =>
       val snapshotUpdated = pos +: snapshot
       stop(snapshotUpdated)
     case (ctx, Command.Resume) =>
