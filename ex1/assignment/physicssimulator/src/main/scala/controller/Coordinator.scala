@@ -48,6 +48,7 @@ case class Coordinator(
     case (ctx, Command.Update(Simulation.Message.Terminated)) =>
       //ctx.log.info("COORDINATOR ACTOR: received TERMINATION")
       viewActor.foreach(_ ! ViewActor.Command.Terminated)
+      ctx.system.terminate()
       Behaviors.stopped
     case (ctx, Command.Stop) =>
       //ctx.log.info("COORDINATOR ACTOR: received STOP")
