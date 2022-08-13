@@ -5,6 +5,7 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import controller.Simulation.{DEFAULT_MASS, DELTA_TIME}
+import controller.utils.Util
 
 import scala.util.Random
 
@@ -49,7 +50,7 @@ case class Simulation(
           body = Body(id = i, pos = P2d(x, y), mass = DEFAULT_MASS)
           bodyRef = ctx.spawn(ActorBody(body, adapter, DELTA_TIME, boundary), s"body-$i")
         yield bodyRef
-      for actorRef <- actorRefs do actorRef ! ActorBody.Start(actorRefs.toSet)
+      Util.sendToAll(actorRefs.toSet)(ActorBody.Start(actorRefs.toSet))
       this
         .focus(_.maxIterations)
         .replace(iterations)

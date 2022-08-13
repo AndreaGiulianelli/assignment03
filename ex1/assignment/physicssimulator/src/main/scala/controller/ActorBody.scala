@@ -49,7 +49,7 @@ case class ActorBody(
           case Start(bodyRefs) =>
             ctx.log.info(s"BODY ACTOR - ${body.id}: received start")
             val refs = bodyRefs - ctx.self
-            Util.sendToAll(refs, State(1, body.pos, body.mass))
+            Util.sendToAll(refs)(State(1, body.pos, body.mass))
             stash.unstashAll(this.focus(_.actorBodies).replace(refs).force())
           case other =>
             stash.stash(other)
@@ -87,7 +87,7 @@ case class ActorBody(
             repulsiveForce = repulsiveForce + body.repulsiveForceBy(pos, mass).getOrElse(V2d())
             if currentResponses == actorBodies.size then
               body = body.accelerate(repulsiveForce + body.currentFrictionForce)
-              Util.sendToAll(actorBodies, ForceUpdated(iteration))
+              Util.sendToAll(actorBodies)(ForceUpdated(iteration))
               ctx.log.info(s"BODY ACTOR - ${body.id}: it: $iteration force updated")
               currentResponses = 0
               repulsiveForce = V2d()
@@ -135,7 +135,7 @@ case class ActorBody(
                 .updatePos(dt)
                 .checkAndSolveBoundaryCollision(boundary)
               simulation ! Message.UpdatedPos(iteration, body.pos)
-              Util.sendToAll(actorBodies, PosUpdated(iteration))
+              Util.sendToAll(actorBodies)(PosUpdated(iteration))
               ctx.log.info(s"BODY ACTOR - ${body.id}: it: $iteration position updated")
               currentResponses = 0
               stash.unstashAll(waitPos())
@@ -175,7 +175,7 @@ case class ActorBody(
             if currentResponses == actorBodies.size + 1 then // + 1 consider the simulation ack
               ctx.log.info(s"BODY ACTOR - ${body.id}, it: $iteration: new iter")
               iteration = iteration + 1
-              Util.sendToAll(actorBodies, State(iteration, body.pos, body.mass))
+              Util.sendToAll(actorBodies)(State(iteration, body.pos, body.mass))
               currentResponses = 0
               stash.unstashAll(force())
             else Behaviors.same
