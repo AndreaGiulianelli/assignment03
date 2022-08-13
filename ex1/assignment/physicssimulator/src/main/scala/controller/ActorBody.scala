@@ -46,7 +46,7 @@ case class ActorBody(
       Behaviors.receive { (ctx, msg) =>
         msg match
           case Start(bodyRefs) =>
-            ctx.log.info(s"BODY ACTOR - ${body.id}: received start")
+            //ctx.log.info(s"BODY ACTOR - ${body.id}: received start")
             val refs = bodyRefs - ctx.self
             Util.sendToAll(refs)(State(body.pos, body.mass))
             stash.unstashAll(this.focus(_.actorBodies).replace(refs).force())
@@ -84,10 +84,11 @@ case class ActorBody(
             //ctx.log.info(s"BODY ACTOR - ${body.id}: received STATE")
             currentResponses = currentResponses + 1
             repulsiveForce = repulsiveForce + body.repulsiveForceBy(pos, mass).getOrElse(V2d())
+            //ctx.log.info(s"BODY ACTOR - ${body.id}: updating forces")
             if currentResponses == actorBodies.size then
               body = body.accelerate(repulsiveForce + body.currentFrictionForce)
+              ctx.log.info(s"BODY ACTOR - ${body.id}: FORCE COMPUTED")
               Util.sendToAll(actorBodies)(ForceUpdated())
-              ctx.log.info(s"BODY ACTOR - ${body.id}: force updated")
               currentResponses = 0
               repulsiveForce = V2d()
               stash.unstashAll(waitForces())
@@ -133,9 +134,9 @@ case class ActorBody(
                 .updateVelocity(dt)
                 .updatePos(dt)
                 .checkAndSolveBoundaryCollision(boundary)
+              ctx.log.info(s"BODY ACTOR - ${body.id}: POSITION UPDATED")
               simulation ! Message.UpdatedPos(body.pos)
               Util.sendToAll(actorBodies)(PosUpdated())
-              ctx.log.info(s"BODY ACTOR - ${body.id}: position updated")
               currentResponses = 0
               stash.unstashAll(waitPos())
             else Behaviors.same
