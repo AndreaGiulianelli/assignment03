@@ -24,11 +24,11 @@ object ViewActor:
   private def initialized(viewer: SimulationViewer): Behavior[Command] = Behaviors.receivePartial { (ctx, msg) =>
     msg match
       case Command.Update(positions, vt, iter, boundary) =>
-        ctx.log.info("VIEW ACTOR: received update")
+        //ctx.log.info("VIEW ACTOR: received update")
         viewer.update(positions, vt, iter, boundary)
         Behaviors.same
       case Command.Terminated =>
-        ctx.log.info("VIEW ACTOR: received TERMINATION")
+        //ctx.log.info("VIEW ACTOR: received TERMINATION")
         viewer.simulationEnd()
         Behaviors.stopped
   }

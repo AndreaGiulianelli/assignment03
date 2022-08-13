@@ -9,7 +9,7 @@ import java.awt.event.{KeyEvent, KeyListener}
 class VisualiserPanel(w: Int, h: Int) extends JPanel with KeyListener:
   private var bodiesPositions: Seq[P2d] = Seq.empty
   private var boundary: Boundary = Boundary(-4, -4, 4, 4)
-  private var nIter: Long = 10
+  private var nIter: Long = 0
   private var vt: Double = 0.01
   private var scale: Double = 1
   val dx = w / 2
