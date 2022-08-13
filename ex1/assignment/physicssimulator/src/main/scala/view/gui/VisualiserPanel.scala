@@ -43,7 +43,7 @@ class VisualiserPanel(w: Int, h: Int) extends JPanel with KeyListener:
         20
       )
   private def getXcoord(x: Double): Int = (dx + x * dx * scale).toInt
-  private def getYcoord(y: Double): Int = (dy + y * dy * scale).toInt
+  private def getYcoord(y: Double): Int = (dy - y * dy * scale).toInt
   def display(bodies: Seq[P2d], vt: Double, iter: Long, bounds: Boundary): Unit =
     this.bodiesPositions = bodies
     this.boundary = bounds
