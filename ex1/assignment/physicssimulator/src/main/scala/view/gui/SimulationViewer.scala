@@ -10,8 +10,20 @@ import java.util.List
 import javax.swing.{JButton, JFrame, JPanel, SwingUtilities}
 
 trait SimulationViewer:
+  /** Display the view */
   def display(): Unit
-  def update(bodies: Seq[P2d], vt: Double, iter: Long, bounds: Boundary): Unit
+  /** Update the view
+    * @param positions
+    *   list of the bodies position
+    * @param vt
+    *   virtual time
+    * @param iter
+    *   iteration counter
+    * @param bounds
+    *   boundary of the environment
+    */
+  def update(positions: Seq[P2d], vt: Double, iter: Long, bounds: Boundary): Unit
+  /** Method to inform the view that the simulation is ended */
   def simulationEnd(): Unit
 
 object SimulationViewer:
@@ -20,9 +32,9 @@ object SimulationViewer:
   private class SimulationViewerImpl(w: Int, h: Int, coordinator: ActorRef[Coordinator.Command])
       extends JFrame
       with SimulationViewer:
-    val panel = VisualiserPanel(w, h)
-    val start = JButton("Start")
-    val stop = JButton("Stop")
+    private val panel = VisualiserPanel(w, h)
+    private val start = JButton("Start")
+    private val stop = JButton("Stop")
 
     setTitle("Bodies Simulation")
     setSize(w, h + 40)
@@ -40,7 +52,7 @@ object SimulationViewer:
     setContentPane(mainPanel)
 
     start.setEnabled(true)
-    start.addActionListener { (e: ActionEvent) =>
+    start.addActionListener { _ =>
       start.setEnabled(false)
       if start.getText == "Resume" then coordinator ! Coordinator.Command.Resume
       else
@@ -50,12 +62,12 @@ object SimulationViewer:
     }
 
     stop.setEnabled(false)
-    stop.addActionListener { (e: ActionEvent) =>
+    stop.addActionListener { _ =>
       coordinator ! Coordinator.Command.Stop
       start.setEnabled(true)
       stop.setEnabled(false)
     }
-    this.addWindowListener(new WindowAdapter():
+    addWindowListener(new WindowAdapter():
       override def windowClosing(ev: WindowEvent): Unit =
         System.exit(-1)
       override def windowClosed(ev: WindowEvent): Unit =
