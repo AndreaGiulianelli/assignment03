@@ -37,7 +37,7 @@ object ActorBody:
   ):
     import ActorBody.*
     import monocle.syntax.all._
-  
+
     val created: Behavior[Command] =
       Behaviors.withStash(10000) { stash =>
         Behaviors.receive { (ctx, msg) =>
@@ -51,7 +51,7 @@ object ActorBody:
               Behaviors.same
         }
       }
-  
+
     def force(): Behavior[Command] =
       var currentResponses = 0
       var repulsiveForce = V2d()
@@ -73,7 +73,7 @@ object ActorBody:
               Behaviors.same
         }
       }
-  
+
     def waitForces(): Behavior[Command] =
       var currentResponses = 0
       Behaviors.withStash(actorBodies.size) { stash =>
@@ -96,7 +96,7 @@ object ActorBody:
               Behaviors.same
         }
       }
-  
+
     def waitPos(): Behavior[Command] =
       var currentResponses = 0
       Behaviors.withStash(actorBodies.size) { stash =>

@@ -56,17 +56,16 @@ object Coordinator:
         stop(simulationActor)
     }
 
-    def stop(simulationActor: ActorRef[Simulation.Command]): Behavior[Command] = Behaviors.withStash(100) {
-      stash =>
-        Behaviors.receive { (ctx, msg) =>
-          msg match
-            case Command.Resume =>
-              //ctx.log.info("COORDINATOR ACTOR: received RESUME")
-              simulationActor ! Simulation.Command.Resume
-              stash.unstashAll(going(simulationActor))
-            case other =>
-              //ctx.log.info(s"COORDINATOR ACTOR (stop): received msg $other")
-              stash.stash(other)
-              Behaviors.same
-        }
+    def stop(simulationActor: ActorRef[Simulation.Command]): Behavior[Command] = Behaviors.withStash(100) { stash =>
+      Behaviors.receive { (ctx, msg) =>
+        msg match
+          case Command.Resume =>
+            //ctx.log.info("COORDINATOR ACTOR: received RESUME")
+            simulationActor ! Simulation.Command.Resume
+            stash.unstashAll(going(simulationActor))
+          case other =>
+            //ctx.log.info(s"COORDINATOR ACTOR (stop): received msg $other")
+            stash.stash(other)
+            Behaviors.same
+      }
     }
