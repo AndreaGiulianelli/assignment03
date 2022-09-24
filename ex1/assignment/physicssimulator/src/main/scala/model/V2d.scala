@@ -9,5 +9,5 @@ object V2d:
     def +(other: V2d): V2d = V2d(v.x + other.x, v.y + other.y)
     def /(k: Double): V2d = v * (1 / k)
     def norm(): Option[V2d] = Math.sqrt(v.x * v.x + v.y * v.y) match
-      case x if x > 0 => Some(v / x)
+      case mod if mod > 0 => Some(v / mod)
       case _ => None
