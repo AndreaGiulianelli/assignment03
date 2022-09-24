@@ -1,6 +1,6 @@
 package controller
 
-import model.{Body, Boundary, P2d, V2d}
+import model.{Body, Boundary, P2d}
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
@@ -9,6 +9,7 @@ import controller.utils.Util.*
 
 import scala.util.Random
 
+/** Module that model the Simulation actor. */
 object Simulation:
   private val DEFAULT_MASS = 10
   private val DELTA_TIME = 0.001
@@ -23,7 +24,7 @@ object Simulation:
     case Update(iteration: Int, virtualTime: Double, positions: Seq[P2d])
     case Terminated
 
-  def apply(coordinator: ActorRef[Message]): Behavior[Command] = Behaviors.setup { ctx =>
+  def apply(coordinator: ActorRef[Message]): Behavior[Command] = Behaviors.setup { _ =>
     SimulationImpl(coordinator).created
   }
 
@@ -41,7 +42,6 @@ object Simulation:
 
     val created: Behavior[Command] = Behaviors.receivePartial {
       case (ctx, Command.Start(iterations, nBodies, boundary)) =>
-        //ctx.log.info("SIMULATION ACTOR: received start")
         val adapter = ctx.messageAdapter(Command.UpdatedBodyPosition.apply)
         val actorRefs =
           for
@@ -64,12 +64,11 @@ object Simulation:
     }
 
     def updating(positions: Seq[P2d] = Seq()): Behavior[Command] =
-      Behaviors.receivePartial {
-        case (ctx, Command.UpdatedBodyPosition(ActorBody.Message.UpdatedPos(pos))) =>
-          //ctx.log.info("SIMULATION ACTOR: received update from body - " + iteration)
-          val positionsUpdated = pos +: positions
-          positionsAndIterationCheck(positionsUpdated)
-        case (ctx, Command.Stop) => stop(positions)
+      Behaviors.receivePartial { (_, msg) =>
+        msg match
+          case Command.UpdatedBodyPosition(ActorBody.Message.UpdatedPos(pos)) =>
+            positionsAndIterationCheck(pos +: positions)
+          case Command.Stop => stop(positions)
       }
 
     def positionsAndIterationCheck(positions: Seq[P2d]): Behavior[Command] =
@@ -88,10 +87,8 @@ object Simulation:
           .updating()
       else updating(positions)
 
-    def stop(snapshot: Seq[P2d]): Behavior[Command] = Behaviors.receivePartial {
-      case (ctx, Command.UpdatedBodyPosition(ActorBody.Message.UpdatedPos(pos))) =>
-        val snapshotUpdated = pos +: snapshot
-        stop(snapshotUpdated)
-      case (ctx, Command.Resume) =>
-        positionsAndIterationCheck(snapshot)
+    def stop(snapshot: Seq[P2d]): Behavior[Command] = Behaviors.receivePartial { (_, msg) =>
+      msg match
+        case Command.UpdatedBodyPosition(ActorBody.Message.UpdatedPos(pos)) => stop(pos +: snapshot)
+        case Command.Resume => positionsAndIterationCheck(snapshot)
     }
