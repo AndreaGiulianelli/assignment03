@@ -5,6 +5,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import model.Boundary
 import view.ViewActor
 
+/** Module that model the Coordinator actor. */
 object Coordinator:
   enum Command:
     case Start
@@ -18,7 +19,7 @@ object Coordinator:
       bodyNumber: Int,
       boundary: Boundary
   ): Behavior[Command] =
-    Behaviors.setup { ctx =>
+    Behaviors.setup { _ =>
       CoordinatorImpl(viewActor, iterations, bodyNumber, boundary).idle
     }
 
@@ -33,7 +34,6 @@ object Coordinator:
     val idle: Behavior[Command] = Behaviors.receivePartial { (ctx, msg) =>
       msg match
         case Command.Start =>
-          //ctx.log.info("COORDINATOR ACTOR: received start")
           val adapter = ctx.messageAdapter(Command.Update.apply)
           val simulationActor = ctx.spawn(Simulation(adapter), "simulation")
           simulationActor ! Simulation.Command.Start(iterations, bodyNumber, boundary)
@@ -41,30 +41,27 @@ object Coordinator:
     }
 
     def going(simulationActor: ActorRef[Simulation.Command]): Behavior[Command] = Behaviors.receivePartial {
-      case (ctx, Command.Update(Simulation.Message.Update(iter, vt, positions))) =>
-        //ctx.log.info("COORDINATOR ACTOR: received update")
-        viewActor.foreach(_ ! ViewActor.Command.Update(positions, vt, iter, boundary))
-        Behaviors.same
-      case (ctx, Command.Update(Simulation.Message.Terminated)) =>
-        //ctx.log.info("COORDINATOR ACTOR: received TERMINATION")
-        viewActor.foreach(_ ! ViewActor.Command.Terminated)
-        ctx.system.terminate()
-        Behaviors.stopped
-      case (ctx, Command.Stop) =>
-        //ctx.log.info("COORDINATOR ACTOR: received STOP")
-        simulationActor ! Simulation.Command.Stop
-        stop(simulationActor)
+      (ctx, msg) =>
+        msg match
+          case Command.Update(Simulation.Message.Update(iter, vt, positions)) =>
+            viewActor.foreach(_ ! ViewActor.Command.Update(positions, vt, iter, boundary))
+            Behaviors.same
+          case Command.Update(Simulation.Message.Terminated) =>
+            viewActor.foreach(_ ! ViewActor.Command.Terminated)
+            ctx.system.terminate()
+            Behaviors.stopped
+          case Command.Stop =>
+            simulationActor ! Simulation.Command.Stop
+            stop(simulationActor)
     }
 
     def stop(simulationActor: ActorRef[Simulation.Command]): Behavior[Command] = Behaviors.withStash(100) { stash =>
-      Behaviors.receive { (ctx, msg) =>
+      Behaviors.receive { (_, msg) =>
         msg match
           case Command.Resume =>
-            //ctx.log.info("COORDINATOR ACTOR: received RESUME")
             simulationActor ! Simulation.Command.Resume
             stash.unstashAll(going(simulationActor))
           case other =>
-            //ctx.log.info(s"COORDINATOR ACTOR (stop): received msg $other")
             stash.stash(other)
             Behaviors.same
       }
