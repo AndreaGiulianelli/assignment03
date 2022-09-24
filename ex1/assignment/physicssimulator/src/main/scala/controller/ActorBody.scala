@@ -28,7 +28,7 @@ object ActorBody:
       new ActorBody(body, simulation, dt, boundary, actorBodies).created
     }
 
-case class ActorBody(
+case class ActorBody private(
     private var body: Body,
     simulation: ActorRef[ActorBody.Message],
     dt: Double,

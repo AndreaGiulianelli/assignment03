@@ -22,7 +22,7 @@ object Coordinator:
       new Coordinator(viewActor, iterations, bodyNumber, boundary).idle
     }
 
-case class Coordinator(
+case class Coordinator private(
     viewActor: Option[ActorRef[ViewActor.Command]],
     iterations: Int,
     bodyNumber: Int,

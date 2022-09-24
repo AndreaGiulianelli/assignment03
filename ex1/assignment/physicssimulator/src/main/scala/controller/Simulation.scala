@@ -27,7 +27,7 @@ object Simulation:
     new Simulation(coordinator).created
   }
 
-case class Simulation(
+case class Simulation private(
     coordinator: ActorRef[Simulation.Message],
     maxIterations: Int = 10,
     bodyRefs: Set[ActorRef[ActorBody.Command]] = Set(),
