@@ -6,6 +6,7 @@ import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import controller.utils.Util.*
 
+/** Module that model the ActorBody actor. */
 object ActorBody:
   trait Command
   case class Start(actorBodies: Set[ActorRef[Command]]) extends Command
@@ -23,7 +24,7 @@ object ActorBody:
       boundary: Boundary,
       actorBodies: Set[ActorRef[Command]] = Set()
   ): Behavior[Command] =
-    Behaviors.setup { ctx =>
+    Behaviors.setup { _ =>
       ActorBodyImpl(body, simulation, dt, boundary, actorBodies).created
     }
 
@@ -55,7 +56,7 @@ object ActorBody:
       var currentResponses = 0
       var repulsiveForce = V2d()
       Behaviors.withStash(actorBodies.size) { stash =>
-        Behaviors.receive { (ctx, msg) =>
+        Behaviors.receive { (_, msg) =>
           msg match
             case State(pos, mass) =>
               currentResponses = currentResponses + 1
@@ -74,7 +75,7 @@ object ActorBody:
     def waitForces(): Behavior[Command] =
       var currentResponses = 0
       Behaviors.withStash(actorBodies.size) { stash =>
-        Behaviors.receive { (ctx, msg) =>
+        Behaviors.receive { (_, msg) =>
           msg match
             case ForceUpdated() =>
               currentResponses = currentResponses + 1
@@ -83,7 +84,6 @@ object ActorBody:
                   .updateVelocity(dt)
                   .updatePos(dt)
                   .checkAndSolveBoundaryCollision(boundary)
-                //ctx.log.info(s"BODY ACTOR - ${body.id}: POSITION UPDATED")
                 simulation ! Message.UpdatedPos(body.pos)
                 actorBodies ! PosUpdated()
                 stash.unstashAll(waitPos())
@@ -97,12 +97,11 @@ object ActorBody:
     def waitPos(): Behavior[Command] =
       var currentResponses = 0
       Behaviors.withStash(actorBodies.size) { stash =>
-        Behaviors.receive { (ctx, msg) =>
+        Behaviors.receive { (_, msg) =>
           msg match
             case PosUpdated() =>
               currentResponses = currentResponses + 1
               if currentResponses == actorBodies.size + 1 then // + 1 consider the simulation ack
-                //ctx.log.info(s"BODY ACTOR - ${body.id}: new iter")
                 actorBodies ! State(body.pos, body.mass)
                 stash.unstashAll(force())
               else Behaviors.same
