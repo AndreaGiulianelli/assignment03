@@ -5,7 +5,7 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import controller.Simulation.{DEFAULT_MASS, DELTA_TIME}
-import controller.utils.Util.sendToAll
+import controller.utils.Util.*
 
 import scala.util.Random
 
@@ -52,7 +52,7 @@ object Simulation:
             bodyRef = ctx.spawn(ActorBody(body, adapter, DELTA_TIME, boundary), s"body-$i")
           yield bodyRef
         val start = System.currentTimeMillis()
-        actorRefs.toSet.sendToAll(ActorBody.Start(actorRefs.toSet))
+        actorRefs.toSet ! ActorBody.Start(actorRefs.toSet)
         this
           .focus(_.maxIterations)
           .replace(iterations)
@@ -79,7 +79,7 @@ object Simulation:
           coordinator ! Message.Terminated
           val stopTime: Long = System.currentTimeMillis()
           println(s"Time: ${stopTime - startTime} ms")
-        else bodyRefs.sendToAll(ActorBody.PosUpdated())
+        else bodyRefs ! ActorBody.PosUpdated()
         this
           .focus(_.iteration)
           .modify(_ + 1)

@@ -4,8 +4,7 @@ import model.{Body, Boundary, P2d, V2d}
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
-import controller.ActorBody.Command
-import controller.utils.Util.sendToAll
+import controller.utils.Util.*
 
 object ActorBody:
   trait Command
@@ -44,7 +43,7 @@ object ActorBody:
           msg match
             case Start(bodyRefs) =>
               val refs = bodyRefs - ctx.self
-              refs.sendToAll(State(body.pos, body.mass))
+              refs ! State(body.pos, body.mass)
               stash.unstashAll(this.focus(_.actorBodies).replace(refs).force())
             case other =>
               stash.stash(other)
@@ -63,9 +62,7 @@ object ActorBody:
               repulsiveForce = repulsiveForce + body.repulsiveForceBy(pos, mass).getOrElse(V2d())
               if currentResponses == actorBodies.size then
                 body = body.accelerate(repulsiveForce + body.currentFrictionForce)
-                //ctx.log.info(s"BODY ACTOR - ${body.id}: FORCE COMPUTED")
-                actorBodies.sendToAll(ForceUpdated())
-                repulsiveForce = V2d()
+                actorBodies ! ForceUpdated()
                 stash.unstashAll(waitForces())
               else Behaviors.same
             case other =>
@@ -88,7 +85,7 @@ object ActorBody:
                   .checkAndSolveBoundaryCollision(boundary)
                 //ctx.log.info(s"BODY ACTOR - ${body.id}: POSITION UPDATED")
                 simulation ! Message.UpdatedPos(body.pos)
-                actorBodies.sendToAll(PosUpdated())
+                actorBodies ! PosUpdated()
                 stash.unstashAll(waitPos())
               else Behaviors.same
             case other =>
@@ -106,7 +103,7 @@ object ActorBody:
               currentResponses = currentResponses + 1
               if currentResponses == actorBodies.size + 1 then // + 1 consider the simulation ack
                 //ctx.log.info(s"BODY ACTOR - ${body.id}: new iter")
-                actorBodies.sendToAll(State(body.pos, body.mass))
+                actorBodies ! State(body.pos, body.mass)
                 stash.unstashAll(force())
               else Behaviors.same
             case other =>
