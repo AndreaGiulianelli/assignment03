@@ -5,7 +5,7 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import controller.ActorBody.Command
-import controller.utils.Util
+import controller.utils.Util.sendToAll
 
 object ActorBody:
   trait Command
@@ -44,7 +44,7 @@ object ActorBody:
           msg match
             case Start(bodyRefs) =>
               val refs = bodyRefs - ctx.self
-              Util.sendToAll(refs)(State(body.pos, body.mass))
+              refs.sendToAll(State(body.pos, body.mass))
               stash.unstashAll(this.focus(_.actorBodies).replace(refs).force())
             case other =>
               stash.stash(other)
@@ -64,7 +64,7 @@ object ActorBody:
               if currentResponses == actorBodies.size then
                 body = body.accelerate(repulsiveForce + body.currentFrictionForce)
                 //ctx.log.info(s"BODY ACTOR - ${body.id}: FORCE COMPUTED")
-                Util.sendToAll(actorBodies)(ForceUpdated())
+                actorBodies.sendToAll(ForceUpdated())
                 repulsiveForce = V2d()
                 stash.unstashAll(waitForces())
               else Behaviors.same
@@ -88,7 +88,7 @@ object ActorBody:
                   .checkAndSolveBoundaryCollision(boundary)
                 //ctx.log.info(s"BODY ACTOR - ${body.id}: POSITION UPDATED")
                 simulation ! Message.UpdatedPos(body.pos)
-                Util.sendToAll(actorBodies)(PosUpdated())
+                actorBodies.sendToAll(PosUpdated())
                 stash.unstashAll(waitPos())
               else Behaviors.same
             case other =>
@@ -106,7 +106,7 @@ object ActorBody:
               currentResponses = currentResponses + 1
               if currentResponses == actorBodies.size + 1 then // + 1 consider the simulation ack
                 //ctx.log.info(s"BODY ACTOR - ${body.id}: new iter")
-                Util.sendToAll(actorBodies)(State(body.pos, body.mass))
+                actorBodies.sendToAll(State(body.pos, body.mass))
                 stash.unstashAll(force())
               else Behaviors.same
             case other =>
