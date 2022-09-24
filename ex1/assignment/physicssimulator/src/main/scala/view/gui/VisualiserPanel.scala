@@ -12,11 +12,11 @@ class VisualiserPanel(w: Int, h: Int) extends JPanel with KeyListener:
   private var nIter: Long = 0
   private var vt: Double = 0.01
   private var scale: Double = 1
-  val dx = w / 2
-  val dy = h / 2 - 20
+  private val dx = w / 2
+  private val dy = h / 2 - 20
 
   setSize(w, h)
-  this.addKeyListener(this)
+  addKeyListener(this)
   setFocusable(true)
   setFocusTraversalKeysEnabled(false)
   requestFocusInWindow
@@ -26,7 +26,7 @@ class VisualiserPanel(w: Int, h: Int) extends JPanel with KeyListener:
       val g2 = g.asInstanceOf[Graphics2D]
       g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
       g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
-      g2.clearRect(0, 0, this.getWidth, this.getHeight)
+      g2.clearRect(0, 0, getWidth, getHeight)
       val x0 = getXcoord(boundary.x0)
       val y0 = getYcoord(boundary.y0)
       val wd = getXcoord(boundary.x1) - x0
