@@ -52,7 +52,7 @@ object ActorBody:
         }
       }
 
-    def force(): Behavior[Command] =
+    private def force(): Behavior[Command] =
       var currentResponses = 0
       var repulsiveForce = V2d()
       Behaviors.withStash(actorBodies.size) { stash =>
@@ -72,7 +72,7 @@ object ActorBody:
         }
       }
 
-    def waitForces(): Behavior[Command] =
+    private def waitForces(): Behavior[Command] =
       var currentResponses = 0
       Behaviors.withStash(actorBodies.size) { stash =>
         Behaviors.receive { (_, msg) =>
@@ -94,7 +94,7 @@ object ActorBody:
         }
       }
 
-    def waitPos(): Behavior[Command] =
+    private def waitPos(): Behavior[Command] =
       var currentResponses = 0
       Behaviors.withStash(actorBodies.size) { stash =>
         Behaviors.receive { (_, msg) =>

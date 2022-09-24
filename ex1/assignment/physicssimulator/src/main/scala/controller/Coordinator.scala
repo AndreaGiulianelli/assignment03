@@ -40,7 +40,7 @@ object Coordinator:
           going(simulationActor)
     }
 
-    def going(simulationActor: ActorRef[Simulation.Command]): Behavior[Command] = Behaviors.receivePartial {
+    private def going(simulationActor: ActorRef[Simulation.Command]): Behavior[Command] = Behaviors.receivePartial {
       (ctx, msg) =>
         msg match
           case Command.Update(Simulation.Message.Update(iter, vt, positions)) =>
@@ -55,14 +55,15 @@ object Coordinator:
             stop(simulationActor)
     }
 
-    def stop(simulationActor: ActorRef[Simulation.Command]): Behavior[Command] = Behaviors.withStash(100) { stash =>
-      Behaviors.receive { (_, msg) =>
-        msg match
-          case Command.Resume =>
-            simulationActor ! Simulation.Command.Resume
-            stash.unstashAll(going(simulationActor))
-          case other =>
-            stash.stash(other)
-            Behaviors.same
-      }
+    private def stop(simulationActor: ActorRef[Simulation.Command]): Behavior[Command] = Behaviors.withStash(100) {
+      stash =>
+        Behaviors.receive { (_, msg) =>
+          msg match
+            case Command.Resume =>
+              simulationActor ! Simulation.Command.Resume
+              stash.unstashAll(going(simulationActor))
+            case other =>
+              stash.stash(other)
+              Behaviors.same
+        }
     }

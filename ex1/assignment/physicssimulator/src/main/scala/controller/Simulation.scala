@@ -63,7 +63,7 @@ object Simulation:
           .updating()
     }
 
-    def updating(positions: Seq[P2d] = Seq()): Behavior[Command] =
+    private def updating(positions: Seq[P2d] = Seq()): Behavior[Command] =
       Behaviors.receivePartial { (_, msg) =>
         msg match
           case Command.UpdatedBodyPosition(ActorBody.Message.UpdatedPos(pos)) =>
@@ -71,7 +71,7 @@ object Simulation:
           case Command.Stop => stop(positions)
       }
 
-    def positionsAndIterationCheck(positions: Seq[P2d]): Behavior[Command] =
+    private def positionsAndIterationCheck(positions: Seq[P2d]): Behavior[Command] =
       if positions.size == bodyRefs.size then
         coordinator ! Message.Update(iteration, virtualTime, positions)
         if iteration == maxIterations then
@@ -87,7 +87,7 @@ object Simulation:
           .updating()
       else updating(positions)
 
-    def stop(snapshot: Seq[P2d]): Behavior[Command] = Behaviors.receivePartial { (_, msg) =>
+    private def stop(snapshot: Seq[P2d]): Behavior[Command] = Behaviors.receivePartial { (_, msg) =>
       msg match
         case Command.UpdatedBodyPosition(ActorBody.Message.UpdatedPos(pos)) => stop(pos +: snapshot)
         case Command.Resume => positionsAndIterationCheck(snapshot)
