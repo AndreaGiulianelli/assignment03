@@ -22,21 +22,24 @@ object CityModel:
       */
     def senseRate: Int
 
-  trait Sensor:
-    def associatedZone: Zone
-    def alarmThreshold: Double
-
   case class Zone(zoneId: Int)
-  case class PluviometerSensor(pluviometerId: String, associatedZone: Zone, alarmThreshold: Double, senseRate: Int)
-      extends Sensor
+  case class PluviometerSensor(
+      pluviometerId: Int,
+      associatedZone: Zone,
+      senseRate: Int,
+      alarmThreshold: Double = Random.between(0.5, 1)
+  )
   case class FirestationService(associatedZone: Zone)
   case class City(
       zones: Seq[Zone],
       firestations: Seq[FirestationService],
-      sensors: Seq[Sensor]
+      sensors: Seq[PluviometerSensor]
   )
 
-  def generateCity(using context: SmartCityParameters): City =
+  given Conversion[Int, Zone] with
+    override def apply(id: Int): Zone = Zone(id)
+
+  def generateCity()(using context: SmartCityParameters): City =
     val zones = generateZones(context.zones)
     val firestations = generateStations(zones)
     val sensors = generateSensors(zones, context.sensorPerZone, context.senseRate)
@@ -50,9 +53,8 @@ object CityModel:
     for zone <- zones
     yield FirestationService(zone)
 
-  private def generateSensors(zones: Seq[Zone], sensorPerZone: Int, senseRate: Int): Seq[Sensor] =
+  private def generateSensors(zones: Seq[Zone], sensorPerZone: Int, senseRate: Int): Seq[PluviometerSensor] =
     for
       zone <- zones
       s <- 0 until sensorPerZone
-      st = Random.between(0.5, 1)
-    yield PluviometerSensor(s"$zone-$s", zone, st, senseRate)
+    yield PluviometerSensor(zone.zoneId * sensorPerZone + s, zone, senseRate)
