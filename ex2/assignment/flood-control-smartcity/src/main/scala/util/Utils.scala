@@ -12,6 +12,7 @@ object Utils:
     startNode("zone", 2551 + zone.zoneId)(ZoneControl())
 
   def deployFireStation(firestation: FirestationService): Unit =
+    //todo: here we need to use the user guardina to spawn both the actor for logic and gui
     startNode("firestation", 7000 + firestation.associatedZone.zoneId)(Firestation())
 
   def deployPluviometer(pluviometer: PluviometerSensor): Unit =
