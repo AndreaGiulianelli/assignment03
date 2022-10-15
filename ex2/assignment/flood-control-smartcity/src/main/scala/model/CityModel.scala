@@ -22,14 +22,23 @@ object CityModel:
       */
     def senseRate: Int
 
-  case class Zone(zoneId: Int)
+  enum ZoneStatus:
+    case NORMAL
+    case ALARM
+    case UNDER_MANAGEMENT
+  case class Zone(zoneId: Int, sensors: Int = 0, status: ZoneStatus = ZoneStatus.NORMAL)
+
   case class PluviometerSensor(
       pluviometerId: Int,
       associatedZone: Zone,
       senseRate: Int,
       alarmThreshold: Double = Random.between(0.5, 1)
   )
-  case class FirestationService(associatedZone: Zone)
+  enum FirestationStatus:
+    case FREE
+    case BUSY
+  case class FirestationService(associatedZone: Zone, status: FirestationStatus = FirestationStatus.FREE)
+
   case class City(
       zones: Seq[Zone],
       firestations: Seq[FirestationService],
