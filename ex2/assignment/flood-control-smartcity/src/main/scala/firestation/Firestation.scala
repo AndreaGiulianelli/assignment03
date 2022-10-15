@@ -15,17 +15,14 @@ object Firestation:
   sealed trait Command extends Message
   case class UpdateZoneStatus(zone: Zone) extends Command
   case class SearchZoneResult(listing: Receptionist.Listing) extends Command
+  private case class FirestationStatus(firestation: FirestationService)
+      extends Command //todo: whenever send this message all must be updated
+  case object AlarmUnderManagement extends Command
+  case object AlarmResolved extends Command
 
   sealed trait ZoneMessage extends Message
   case object UnderManagement extends ZoneMessage
   case object AlarmSolved extends ZoneMessage
   case class FirestationRegistrationResponse(zoneRef: ActorRef[ZoneMessage]) extends ZoneMessage
-
-  sealed trait FirestationProtocol extends Message
-  case class FirestationStatus(firestation: FirestationService) //todo: whenever send this message all must be updated
-
-  enum ViewCommands:
-    case AlarmUnderManagement
-    case AlarmResolved
 
   def apply(): Behavior[Command] = Behaviors.empty
