@@ -2,7 +2,7 @@ package firestation.gui
 
 import akka.actor.typed.ActorRef
 import firestation.Firestation
-import model.CityModel.{ALARM, FirestationService, NORMAL, UNDER_MANAGEMENT, Zone, ZoneStatus}
+import model.CityModel.{ALARM, BUSY, FREE, FirestationService, NORMAL, UNDER_MANAGEMENT, Zone, ZoneStatus}
 
 import java.awt.{Color, Component, Dimension}
 import javax.swing.{Box, BoxLayout, JButton, JFrame, JLabel, JPanel, SwingUtilities}
@@ -31,8 +31,10 @@ object FirestationViewer:
     private val statusLayout = BoxLayout(statusPanel, BoxLayout.Y_AXIS)
     private val zoneIdLabel = JLabel("Zone id: ")
     private val zoneStatusLabel = JLabel("Zone status: ")
+    zoneStatusLabel.setOpaque(true)
     private val zoneSensorsLabel = JLabel("Zone sensors: ")
     private val firestationStatusLabel = JLabel("Firestation status: ")
+    firestationStatusLabel.setOpaque(true)
     private val managementBtn = JButton("Manage")
     statusPanel.setLayout(statusLayout)
     statusPanel.add(zoneIdLabel)
@@ -70,6 +72,10 @@ object FirestationViewer:
     statusPanel.setAlignmentX(Component.LEFT_ALIGNMENT)
     zonesPanel.setAlignmentX(Component.LEFT_ALIGNMENT)
     setContentPane(mainPanel)
+    private val textZoneMap = Map(NORMAL() -> "Normal", ALARM() -> "Alarm", UNDER_MANAGEMENT() -> "Under management")
+    private val textFirestationMap = Map(FREE() -> "Free", BUSY() -> "Busy")
+    private val colorZoneMap = Map(NORMAL() -> Color.green, ALARM() -> Color.red, UNDER_MANAGEMENT() -> Color.orange)
+    private val colorFirestationMap = Map(FREE() -> Color.green, BUSY() -> Color.red)
 
     override def display(): Unit = SwingUtilities.invokeLater(() => setVisible(true))
 
@@ -77,9 +83,11 @@ object FirestationViewer:
       if firestation.associatedZone.zoneId == zone.zoneId then
         zone = firestation.associatedZone
         zoneIdLabel.setText(s"Zone id: ${firestation.associatedZone.zoneId}")
-        zoneStatusLabel.setText(s"Zone status: ${firestation.associatedZone.status}")
+        zoneStatusLabel.setText(s"Zone status: ${textZoneMap(firestation.associatedZone.status)}")
+        zoneStatusLabel.setBackground(colorZoneMap(firestation.associatedZone.status))
         zoneSensorsLabel.setText(s"Zone sensors: ${firestation.associatedZone.sensors}")
-        firestationStatusLabel.setText(s"Firestation status: ${firestation.status}")
+        firestationStatusLabel.setText(s"Firestation status: ${textFirestationMap(firestation.status)}")
+        firestationStatusLabel.setBackground(colorFirestationMap(firestation.status))
       else
         zoneMap = zoneMap + (firestation.associatedZone.zoneId -> firestation.associatedZone)
         render()
@@ -95,13 +103,11 @@ object FirestationViewer:
     private def createZoneRender(zoneToDisplay: Zone): JPanel =
       val panel = JPanel()
       val layout = BoxLayout(panel, BoxLayout.Y_AXIS)
-      val status = JLabel(zoneToDisplay.toString)
-      panel.setLayout(layout)
-      status.setBackground(zoneToDisplay.status match
-        case NORMAL() => Color.green
-        case ALARM() => Color.red
-        case UNDER_MANAGEMENT() => Color.orange
+      val status = JLabel(
+        s"Zone ${zoneToDisplay.zoneId} - sensors: ${zoneToDisplay.sensors} - status: ${textZoneMap(zoneToDisplay.status)}"
       )
+      panel.setLayout(layout)
+      status.setBackground(colorZoneMap(zoneToDisplay.status))
       status.setOpaque(true)
       panel.add(status)
       panel
