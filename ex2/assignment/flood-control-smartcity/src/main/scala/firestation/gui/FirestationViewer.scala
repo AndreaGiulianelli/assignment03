@@ -8,9 +8,9 @@ import model.CityModel.ZoneStatus
 import java.awt.{Color, Component, Dimension}
 import javax.swing.{Box, BoxLayout, JButton, JFrame, JLabel, JPanel, SwingUtilities}
 
-//todo: add all the necessary methods.
 trait FirestationViewer:
   def display(): Unit
+  def update(zone: Zone): Unit
 
 object FirestationViewer:
   def apply(zone: Zone, width: Int, height: Int, firestation: ActorRef[Firestation.Command]): FirestationViewer =
@@ -19,13 +19,7 @@ object FirestationViewer:
       extends JFrame
       with FirestationViewer:
 
-    private var zoneMap: Map[Int, Zone] = Map(
-      0 -> Zone(0, status = ZoneStatus.ALARM),
-      1 -> Zone(1),
-      2 -> Zone(2),
-      3 -> Zone(3, status = ZoneStatus.UNDER_MANAGEMENT),
-      4 -> Zone(4)
-    )
+    private var zoneMap: Map[Int, Zone] = Map.empty
     setTitle(s"Zone#${zone.zoneId}")
     setSize(width, height)
 
@@ -60,6 +54,9 @@ object FirestationViewer:
     setContentPane(mainPanel)
 
     override def display(): Unit = SwingUtilities.invokeLater(() => setVisible(true))
+    override def update(zone: Zone): Unit =
+      zoneMap = zoneMap + (zone.zoneId -> zone)
+      render()
 
     private def render(): Unit =
       zonesPanel.removeAll()
