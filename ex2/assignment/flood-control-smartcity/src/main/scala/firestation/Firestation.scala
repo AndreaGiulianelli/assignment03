@@ -80,11 +80,13 @@ object Firestation:
         handleUpdates(firestation, statuses).orElse { (ctx, msg) =>
           msg match
             case AlarmUnderManagement =>
-              val updatedFirestation = firestation.focus(_.status).replace(FirestationStatus.BUSY)
-              firestations ! FirestationUpdate(ctx.self, updatedFirestation)
-              zoneRef ! UnderManagement
-              // todo: send update to the view
-              busy(updatedFirestation, statuses)
+              if firestation.associatedZone.status == ZoneStatus.ALARM then
+                val updatedFirestation = firestation.focus(_.status).replace(FirestationStatus.BUSY)
+                firestations ! FirestationUpdate(ctx.self, updatedFirestation)
+                zoneRef ! UnderManagement
+                // todo: send update to the view
+                busy(updatedFirestation, statuses)
+              else Behaviors.same
         }
       }
 
