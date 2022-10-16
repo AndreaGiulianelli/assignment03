@@ -35,18 +35,34 @@ object Pluviometer:
         )
         Behaviors.same
       case SearchZoneResult(zoneKey.Listing(list)) =>
+        ctx.log.info(
+          s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} OBTAINED RESULTS --------"
+        )
         if list.nonEmpty then
           val zoneRef = list.head
+          ctx.log.info(
+            s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} REQUEST REGISTER --------"
+          )
           zoneRef ! ZoneControl.RegisterPluviometer(ctx.self)
           pairing(pluviometer, zoneRef)
-        else Behaviors.same
+        else
+          ctx.log.info(
+            s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} EMPTY RESULTS --------"
+          )
+          Behaviors.same
+      case _ => Behaviors.unhandled
   }
 
   private def pairing(pluviometer: PluviometerSensor, zoneRef: ActorRef[ZoneControl.Command]): Behavior[Command] =
     Behaviors.receive { (ctx, msg) =>
       msg match
         case PluviometerRegistrationResponse(ref, true) =>
-          if zoneRef == ref then working(pluviometer, zoneRef) else Behaviors.same
+          if zoneRef == ref then
+            ctx.log.info(
+              s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} REGISTERED --------"
+            )
+            working(pluviometer, zoneRef)
+          else Behaviors.same
         case PluviometerRegistrationResponse(_, false) =>
           ctx.log.info(
             s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} FAILED REGISTER --------"
