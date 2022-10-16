@@ -167,6 +167,7 @@ object ZoneControl:
           ctx.messageAdapter[Firestation.ZoneMessage](FirestationUpdate.apply),
           true
         )
+        ref ! Firestation.UpdateZoneStatus(zoneState.zone) // send immediately the current state to the firestation
         nextState(zoneState.focus(_.firestation).replace(Some(ref)))
   }
 
