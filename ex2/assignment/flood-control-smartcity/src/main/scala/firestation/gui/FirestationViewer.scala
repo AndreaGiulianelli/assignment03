@@ -2,7 +2,7 @@ package firestation.gui
 
 import akka.actor.typed.ActorRef
 import firestation.Firestation
-import model.CityModel.{FirestationService, Zone, ZoneStatus}
+import model.CityModel.{ALARM, FirestationService, NORMAL, UNDER_MANAGEMENT, Zone, ZoneStatus}
 
 import java.awt.{Color, Component, Dimension}
 import javax.swing.{Box, BoxLayout, JButton, JFrame, JLabel, JPanel, SwingUtilities}
@@ -78,9 +78,9 @@ object FirestationViewer:
       val status = JLabel(zoneToDisplay.toString)
       panel.setLayout(layout)
       status.setBackground(zoneToDisplay.status match
-        case ZoneStatus.NORMAL => Color.green
-        case ZoneStatus.ALARM => Color.red
-        case ZoneStatus.UNDER_MANAGEMENT => Color.orange
+        case NORMAL() => Color.green
+        case ALARM() => Color.red
+        case UNDER_MANAGEMENT() => Color.orange
       )
       status.setOpaque(true)
       panel.add(status)
