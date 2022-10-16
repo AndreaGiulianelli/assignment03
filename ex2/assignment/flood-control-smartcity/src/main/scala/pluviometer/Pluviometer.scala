@@ -24,12 +24,12 @@ object Pluviometer:
 
   def apply(pluviometer: PluviometerSensor): Behavior[Command] = idle(pluviometer)
 
-  private def idle(pluviometer: PluviometerSensor): Behavior[Command] = Behaviors.receivePartial { (ctx, msg) =>
+  private def idle(pluviometer: PluviometerSensor): Behavior[Command] = Behaviors.receive { (ctx, msg) =>
     val zoneKey = ZoneControl.Service.serviceKey(pluviometer.associatedZone)
     msg match
       case Start =>
         val adapter = ctx.messageAdapter[Receptionist.Listing](SearchZoneResult.apply)
-        ctx.system.receptionist ! Receptionist.Find(zoneKey, adapter)
+        ctx.system.receptionist ! Receptionist.Subscribe(zoneKey, adapter)
         ctx.log.info(
           s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} STARTED --------"
         )
@@ -43,7 +43,7 @@ object Pluviometer:
   }
 
   private def pairing(pluviometer: PluviometerSensor, zoneRef: ActorRef[ZoneControl.Command]): Behavior[Command] =
-    Behaviors.receivePartial { (_, msg) =>
+    Behaviors.receive { (ctx, msg) =>
       msg match
         case PluviometerRegistrationResponse(ref, true) =>
           if zoneRef == ref then working(pluviometer, zoneRef) else Behaviors.same
@@ -52,12 +52,13 @@ object Pluviometer:
             s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} FAILED REGISTER --------"
           )
           idle(pluviometer) // if it's not accepted by the zone, return to idle
+        case _ => Behaviors.unhandled
     }
 
   private def working(pluviometer: PluviometerSensor, zoneRef: ActorRef[ZoneControl.Command]): Behavior[Command] =
     Behaviors.withTimers { timers =>
       timers.startTimerWithFixedDelay(GenerateData, pluviometer.senseRate.millis)
-      Behaviors.receivePartial { (ctx, msg) =>
+      Behaviors.receive { (ctx, msg) =>
         msg match
           case GenerateData =>
             ctx.log.info(
@@ -71,6 +72,7 @@ object Pluviometer:
             )
             ref ! Status(ctx.self, pluviometer.inAlarm)
             Behaviors.same
+          case _ => Behaviors.unhandled
       }
 
     }

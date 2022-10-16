@@ -35,22 +35,23 @@ object Firestation:
 
   def apply(firestation: FirestationService): Behavior[Command] = idle(firestation)
 
-  private def idle(firestation: FirestationService): Behavior[Command] = Behaviors.receivePartial { (ctx, msg) =>
+  private def idle(firestation: FirestationService): Behavior[Command] = Behaviors.receive { (ctx, msg) =>
     val zoneKey = ZoneControl.Service.serviceKey(firestation.associatedZone)
     msg match
       case Start =>
         val adapter = ctx.messageAdapter[Receptionist.Listing](SearchZoneResult.apply)
-        ctx.system.receptionist ! Receptionist.Find(zoneKey, adapter)
+        ctx.system.receptionist ! Receptionist.Subscribe(zoneKey, adapter)
         Behaviors.same
       case SearchZoneResult(zoneKey.Listing(list)) =>
         if list.nonEmpty then
           list.head ! ZoneControl.RegisterFirestation(ctx.self)
           pairing(firestation)
         else Behaviors.same
+      case _ => Behaviors.unhandled
   }
 
   private def pairing(firestation: FirestationService): Behavior[Command] =
-    Behaviors.receivePartial { (ctx, msg) =>
+    Behaviors.receive { (ctx, msg) =>
       msg match
         case FirestationRegistrationResponse(ref, true) =>
           ctx.system.receptionist ! Receptionist.register(firestationServiceKey, ctx.self)
@@ -63,6 +64,7 @@ object Firestation:
           FirestationActor(ref, viewActor).free(firestation)
         case FirestationRegistrationResponse(ref, false) =>
           idle(firestation) // if it's not accepted by the zone, return to idle
+        case _ => Behaviors.unhandled
     }
 
   private case class FirestationActor(
@@ -87,6 +89,7 @@ object Firestation:
                 viewer ! FirestationViewActor.Command.UpdateFirestation(updatedFirestation)
                 busy(updatedFirestation, statuses)
               else Behaviors.same
+            case _ => Behaviors.unhandled
         }
       }
 
@@ -102,6 +105,7 @@ object Firestation:
             zoneRef ! Solved
             viewer ! FirestationViewActor.Command.UpdateFirestation(updatedFirestation)
             free(updatedFirestation, statuses)
+          case _ => Behaviors.unhandled
       }
     }
 
