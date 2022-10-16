@@ -25,4 +25,4 @@ object Firestation:
   case object AlarmSolved extends ZoneMessage
   case class FirestationRegistrationResponse(zoneRef: ActorRef[ZoneMessage]) extends ZoneMessage
 
-  def apply(): Behavior[Command] = Behaviors.empty
+  def apply(firestation: FirestationService): Behavior[Command] = Behaviors.empty
