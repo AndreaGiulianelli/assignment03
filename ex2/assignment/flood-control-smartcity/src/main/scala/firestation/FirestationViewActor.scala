@@ -10,6 +10,8 @@ object FirestationViewActor:
   enum Command:
     case Start(zone: Zone, width: Int, height: Int, firestation: ActorRef[Firestation.Command])
 
+  def apply(): Behavior[Command] = init()
+
   private def init(): Behavior[Command] =
     Behaviors.receiveMessagePartial { case Command.Start(zone, width, height, firestation) =>
       val viewer = FirestationViewer(zone, width, height, firestation)
