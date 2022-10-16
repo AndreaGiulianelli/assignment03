@@ -15,7 +15,7 @@ object ZoneControl:
   private case class FirestationUpdate(update: Firestation.ZoneMessage) extends Command
   case class Alarm(pluviometer: ActorRef[Pluviometer.Command]) extends Command
   case class RegisterPluviometer(pluviometer: ActorRef[Pluviometer.Command]) extends Command
-  case class RegisterFirestation(firestation: ActorRef[Firestation.ZoneMessage]) extends Command
+  case class RegisterFirestation(firestation: ActorRef[Firestation.Command]) extends Command
   // todo: check if I can insert directly MemberExit or I need Member Event
   case class PluviometerExit(event: MemberExited) extends Command
 
