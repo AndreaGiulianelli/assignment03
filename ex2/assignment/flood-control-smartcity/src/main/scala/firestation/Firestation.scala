@@ -84,7 +84,7 @@ object Firestation:
                 val updatedFirestation = firestation.focus(_.status).replace(FirestationStatus.BUSY)
                 firestations ! FirestationUpdate(ctx.self, updatedFirestation)
                 zoneRef ! UnderManagement
-                // todo: send update to the view
+                viewer ! FirestationViewActor.Command.UpdateFirestation(updatedFirestation)
                 busy(updatedFirestation, statuses)
               else Behaviors.same
         }
@@ -100,7 +100,7 @@ object Firestation:
             val updatedFirestation = firestation.focus(_.status).replace(FirestationStatus.FREE)
             firestations ! FirestationUpdate(ctx.self, updatedFirestation)
             zoneRef ! Solved
-            // todo: send update to the view
+            viewer ! FirestationViewActor.Command.UpdateFirestation(updatedFirestation)
             free(updatedFirestation, statuses)
       }
     }
@@ -123,11 +123,11 @@ object Firestation:
             val updatedActor = this.focus(_.firestations).replace(list)
             _changeState(updatedActor, firestation, statuses)
           case FirestationUpdate(ref, station) =>
-            //todo: send update to the view
             val updatedStatuses = statuses + (ref -> station)
+            viewer ! FirestationViewActor.Command.UpdateFirestation(station)
             _changeState(this, firestation, updatedStatuses)
           case UpdateZoneStatus(zone) =>
-            //todo: send update to the view
             val updatedFirestation = firestation.focus(_.associatedZone).replace(zone)
             firestations ! FirestationUpdate(ctx.self, updatedFirestation) // update other firestations
+            viewer ! FirestationViewActor.Command.UpdateFirestation(updatedFirestation)
             _changeState(this, updatedFirestation, statuses)
