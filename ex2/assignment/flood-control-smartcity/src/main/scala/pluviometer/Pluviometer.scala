@@ -30,6 +30,9 @@ object Pluviometer:
       case Start =>
         val adapter = ctx.messageAdapter[Receptionist.Listing](SearchZoneResult.apply)
         ctx.system.receptionist ! Receptionist.Find(zoneKey, adapter)
+        ctx.log.info(
+          s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} STARTED --------"
+        )
         Behaviors.same
       case SearchZoneResult(zoneKey.Listing(list)) =>
         if list.nonEmpty then
@@ -45,6 +48,9 @@ object Pluviometer:
         case PluviometerRegistrationResponse(ref, true) =>
           if zoneRef == ref then working(pluviometer, zoneRef) else Behaviors.same
         case PluviometerRegistrationResponse(_, false) =>
+          ctx.log.info(
+            s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} FAILED REGISTER --------"
+          )
           idle(pluviometer) // if it's not accepted by the zone, return to idle
     }
 
@@ -54,9 +60,15 @@ object Pluviometer:
       Behaviors.receivePartial { (ctx, msg) =>
         msg match
           case GenerateData =>
+            ctx.log.info(
+              s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} GENERATING.... --------"
+            )
             if pluviometer.inAlarm then zoneRef ! ZoneControl.Alarm(ctx.self)
             Behaviors.same
           case GetStatus(ref) =>
+            ctx.log.info(
+              s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} ASKED STATUS --------"
+            )
             ref ! Status(ctx.self, pluviometer.inAlarm)
             Behaviors.same
       }
