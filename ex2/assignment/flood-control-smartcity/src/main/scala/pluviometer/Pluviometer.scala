@@ -20,7 +20,7 @@ object Pluviometer:
   case class SearchZoneResult(listing: Receptionist.Listing) extends Command
 
   sealed trait DataResponse extends Message
-  case class Status(alarm: Boolean) extends DataResponse
+  case class Status(ref: ActorRef[Command], alarm: Boolean) extends DataResponse
 
   def apply(pluviometer: PluviometerSensor): Behavior[Command] = idle(pluviometer)
 
@@ -57,7 +57,7 @@ object Pluviometer:
             if pluviometer.inAlarm then zoneRef ! ZoneControl.Alarm(ctx.self)
             Behaviors.same
           case GetStatus(ref) =>
-            ref ! Status(pluviometer.inAlarm)
+            ref ! Status(ctx.self, pluviometer.inAlarm)
             Behaviors.same
       }
 
