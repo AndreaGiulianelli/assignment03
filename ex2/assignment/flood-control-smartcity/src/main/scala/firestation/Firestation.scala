@@ -4,11 +4,9 @@ import akka.actor.typed.Behavior
 import akka.actor.typed.ActorRef
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.*
-import model.CityModel.{FirestationService, Zone}
+import model.CityModel.{ALARM, BUSY, FREE, FirestationService, FirestationStatus, Zone, ZoneStatus}
 import util.Message
 import zone.ZoneControl
-import model.CityModel.ZoneStatus
-import model.CityModel.FirestationStatus
 import util.Utils.AkkaUtils.*
 
 /*
@@ -82,8 +80,8 @@ object Firestation:
         handleUpdates(firestation, statuses).orElse { (ctx, msg) =>
           msg match
             case AlarmUnderManagement =>
-              if firestation.associatedZone.status == ZoneStatus.ALARM then
-                val updatedFirestation = firestation.focus(_.status).replace(FirestationStatus.BUSY)
+              if firestation.associatedZone.status == ALARM() then
+                val updatedFirestation = firestation.focus(_.status).replace(BUSY())
                 firestations ! FirestationUpdate(ctx.self, updatedFirestation)
                 zoneRef ! UnderManagement
                 viewer ! FirestationViewActor.Command.UpdateFirestation(updatedFirestation)
@@ -100,7 +98,7 @@ object Firestation:
       handleUpdates(firestation, statuses).orElse { (ctx, msg) =>
         msg match
           case AlarmSolved =>
-            val updatedFirestation = firestation.focus(_.status).replace(FirestationStatus.FREE)
+            val updatedFirestation = firestation.focus(_.status).replace(FREE())
             firestations ! FirestationUpdate(ctx.self, updatedFirestation)
             zoneRef ! Solved
             viewer ! FirestationViewActor.Command.UpdateFirestation(updatedFirestation)
@@ -118,7 +116,7 @@ object Firestation:
           firestation: FirestationService,
           statuses: Map[ActorRef[Firestation.Command], FirestationService]
       ): Behavior[Command] =
-        if firestation.status == FirestationStatus.FREE then actor.free(firestation, statuses)
+        if firestation.status == FREE() then actor.free(firestation, statuses)
         else actor.busy(firestation, statuses)
 
       (ctx, msg) =>

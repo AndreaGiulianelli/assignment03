@@ -1,5 +1,8 @@
 package model
 
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import util.CborSerializable
+
 import scala.util.Random
 
 object CityModel:
@@ -22,26 +25,43 @@ object CityModel:
       */
     def senseRate: Int
 
-  enum ZoneStatus:
-    case NORMAL
-    case ALARM
-    case UNDER_MANAGEMENT
-  case class Zone(zoneId: Int, sensors: Int = 0, status: ZoneStatus = ZoneStatus.NORMAL)
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(
+    Array(
+      new JsonSubTypes.Type(value = classOf[NORMAL], name = "normal"),
+      new JsonSubTypes.Type(value = classOf[ALARM], name = "alarm"),
+      new JsonSubTypes.Type(value = classOf[UNDER_MANAGEMENT], name = "under_management")
+    )
+  )
+  sealed trait ZoneStatus extends CborSerializable
+  case class NORMAL() extends ZoneStatus
+  case class ALARM() extends ZoneStatus
+  case class UNDER_MANAGEMENT() extends ZoneStatus
+
+  case class Zone(zoneId: Int, sensors: Int = 0, status: ZoneStatus = NORMAL()) extends CborSerializable
 
   case class PluviometerSensor(
       pluviometerId: Int,
       associatedZone: Zone,
       senseRate: Int,
       alarmThreshold: Double = Random.between(0.5, 1)
-  ):
+  ) extends CborSerializable:
     def inAlarm: Boolean =
       val r = Random.between(0.0, 1.0)
       r >= alarmThreshold
 
-  enum FirestationStatus:
-    case FREE
-    case BUSY
-  case class FirestationService(associatedZone: Zone, status: FirestationStatus = FirestationStatus.FREE)
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(
+    Array(
+      new JsonSubTypes.Type(value = classOf[FREE], name = "free"),
+      new JsonSubTypes.Type(value = classOf[BUSY], name = "busy")
+    )
+  )
+  sealed trait FirestationStatus extends CborSerializable
+  case class FREE() extends FirestationStatus
+  case class BUSY() extends FirestationStatus
+
+  case class FirestationService(associatedZone: Zone, status: FirestationStatus = FREE()) extends CborSerializable
 
   case class City(
       zones: Seq[Zone],

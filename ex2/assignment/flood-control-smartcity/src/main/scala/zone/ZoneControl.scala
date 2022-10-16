@@ -8,12 +8,11 @@ import akka.cluster.typed.{Cluster, Subscribe}
 import akka.cluster.ClusterEvent.MemberExited
 import pluviometer.Pluviometer
 import firestation.Firestation
-import model.CityModel.Zone
-import model.CityModel.ZoneStatus
+import model.CityModel.{ALARM, NORMAL, UNDER_MANAGEMENT, Zone, ZoneStatus}
 import pluviometer.Pluviometer.DataResponse
 import util.Message
 import util.Utils.AkkaUtils.*
-import monocle.syntax.all._
+import monocle.syntax.all.*
 
 object ZoneControl:
   sealed trait Command extends Message
@@ -45,13 +44,12 @@ object ZoneControl:
     handlePluviometerRegistration(zoneState, normal)
       .orElse(handleFirestationRegistration(zoneState, normal))
       .orElse(handlePluviometerExit(zoneState, normal))
-      .orElse { (ctx, msg) =>
-        msg match
-          case Alarm(pluviometer) =>
-            zoneState.pluviometers ! Pluviometer.GetStatus(
-              ctx.messageAdapter[Pluviometer.DataResponse](PluviometerStatus.apply)
-            )
-            preAlarm(zoneState, Map(pluviometer -> true))
+      .orElse { case (ctx, Alarm(pluviometer)) =>
+        zoneState.pluviometers ! Pluviometer.GetStatus(
+          ctx.messageAdapter[Pluviometer.DataResponse](PluviometerStatus.apply)
+        )
+        ctx.log.info(s"------------ ZONE ${zoneState.zone.zoneId} RECEIVED FIRST ALARM - CHECK --------------")
+        preAlarm(zoneState, Map(pluviometer -> true))
       }
   }
 
@@ -66,25 +64,34 @@ object ZoneControl:
       if updateAlarmMap.keys.size >= zoneState.pluviometers.size then
         if updateAlarmMap
             .filter((k, v) => zoneState.pluviometers.contains(k) && v)
-            .size > zoneState.pluviometers.size / 2
+            .size >= Math.floor(zoneState.pluviometers.size / 2) + 1
         then
-          val updatedZoneState = zoneState.focus(_.zone).modify(_.focus(_.status).replace(ZoneStatus.ALARM))
+          println(s"------------ ZONE ${zoneState.zone.zoneId} ALAAAARMMMMMM --------------")
+          val updatedZoneState = zoneState.focus(_.zone).modify(_.focus(_.status).replace(ALARM()))
           updatedZoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
           stash.unstashAll(alarm(updatedZoneState))
-        else stash.unstashAll(normal(zoneState))
+        else
+          println(s"------------ ZONE ${zoneState.zone.zoneId} FALSE ALARM --------------")
+          stash.unstashAll(normal(zoneState))
       else preAlarm(zoneState, updateAlarmMap)
 
     Behaviors.receivePartial {
       handleFirestationRegistration(zoneState, z => preAlarm(z, alarmMap = alarmMap))
         .orElse(handlePluviometerExit(zoneState, z => preAlarm(z, alarmMap = alarmMap)))
-        .orElse((_, msg) =>
+        .orElse((ctx, msg) =>
           Behaviors.withStash(100) { stash =>
             msg match
               case PluviometerStatus(Pluviometer.Status(p, isInAlarm)) =>
                 val updateAlarmMap = alarmMap + (p -> isInAlarm)
+                ctx.log.info(
+                  s"------------ ZONE ${zoneState.zone.zoneId} RECEIVED OTHER STUFF ${p -> isInAlarm} - CHECK --------------"
+                )
                 _check(stash, updateAlarmMap)
               case Alarm(p) =>
                 val updateAlarmMap = alarmMap + (p -> true)
+                ctx.log.info(
+                  s"------------ ZONE ${zoneState.zone.zoneId} RECEIVED OTHER STUFF ${p -> true} - CHECK --------------"
+                )
                 _check(stash, updateAlarmMap)
               case other =>
                 stash.stash(other)
@@ -99,15 +106,14 @@ object ZoneControl:
     handlePluviometerRegistration(zoneState, alarm)
       .orElse(handleFirestationRegistration(zoneState, alarm))
       .orElse(handlePluviometerExit(zoneState, alarm))
-      .orElse { (_, msg) =>
-        msg match
-          case FirestationUpdate(update) =>
-            update match
-              case Firestation.UnderManagement =>
-                val updatedZoneState =
-                  zoneState.focus(_.zone).modify(_.focus(_.status).replace(ZoneStatus.UNDER_MANAGEMENT))
-                updatedZoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
-                alarmUnderManagement(updatedZoneState)
+      .orElse { case (ctx, FirestationUpdate(update)) =>
+        update match
+          case Firestation.UnderManagement =>
+            val updatedZoneState =
+              zoneState.focus(_.zone).modify(_.focus(_.status).replace(UNDER_MANAGEMENT()))
+            ctx.log.info(s"------------ ZONE ${zoneState.zone.zoneId} UNDER MANAGEMENT --------------")
+            updatedZoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
+            alarmUnderManagement(updatedZoneState)
       }
   }
 
@@ -116,14 +122,13 @@ object ZoneControl:
   ): Behavior[Command] = Behaviors.receivePartial {
     handlePluviometerRegistration(zoneState, alarmUnderManagement)
       .orElse(handlePluviometerExit(zoneState, alarmUnderManagement))
-      .orElse { (_, msg) =>
-        msg match
-          case FirestationUpdate(update) =>
-            update match
-              case Firestation.Solved =>
-                val updatedZoneState = zoneState.focus(_.zone).modify(_.focus(_.status).replace(ZoneStatus.NORMAL))
-                updatedZoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
-                normal(updatedZoneState)
+      .orElse { case (ctx, FirestationUpdate(update)) =>
+        update match
+          case Firestation.Solved =>
+            ctx.log.info(s"------------ ZONE ${zoneState.zone.zoneId} SOOOOLVEDDDD --------------")
+            val updatedZoneState = zoneState.focus(_.zone).modify(_.focus(_.status).replace(NORMAL()))
+            updatedZoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
+            normal(updatedZoneState)
       }
   }
 
@@ -131,44 +136,39 @@ object ZoneControl:
   private def handlePluviometerRegistration(
       zoneState: ZoneState,
       nextState: ZoneState => Behavior[Command]
-  ): PartialFunction[(ActorContext[Command], Command), Behavior[Command]] = { (ctx, msg) =>
-    msg match
-      case RegisterPluviometer(ref) =>
-        ref ! Pluviometer.PluviometerRegistrationResponse(ctx.self, true)
-        val updatedZoneState = zoneState
-          .focus(_.pluviometers)
-          .modify(_ + ref)
-          .focus(_.zone)
-          .modify(_.focus(_.sensors).modify(_ + 1))
-        zoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
-        nextState(updatedZoneState)
+  ): PartialFunction[(ActorContext[Command], Command), Behavior[Command]] = { case (ctx, RegisterPluviometer(ref)) =>
+    ref ! Pluviometer.PluviometerRegistrationResponse(ctx.self, true)
+    val updatedZoneState = zoneState
+      .focus(_.pluviometers)
+      .modify(_ + ref)
+      .focus(_.zone)
+      .modify(_.focus(_.sensors).modify(_ + 1))
+    zoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
+    nextState(updatedZoneState)
   }
   private def handlePluviometerExit(
       zoneState: ZoneState,
       nextState: ZoneState => Behavior[Command]
-  ): PartialFunction[(ActorContext[Command], Command), Behavior[Command]] = { (_, msg) =>
-    msg match
-      case PluviometerExit(MemberExited(member)) =>
-        val updatedZoneState = zoneState
-          .focus(_.pluviometers)
-          .modify(_.filter(_.path.address != member.address))
-          .focus(_.zone)
-          .modify(_.focus(_.sensors).modify(_ - 1))
-        zoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
-        nextState(updatedZoneState)
+  ): PartialFunction[(ActorContext[Command], Command), Behavior[Command]] = {
+    case (ctx, PluviometerExit(MemberExited(member))) =>
+      val updatedZoneState = zoneState
+        .focus(_.pluviometers)
+        .modify(_.filter(_.path.address != member.address))
+        .focus(_.zone)
+        .modify(_.focus(_.sensors).modify(_ - 1))
+      zoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
+      nextState(updatedZoneState)
   }
   private def handleFirestationRegistration(
       zoneState: ZoneState,
       nextState: ZoneState => Behavior[Command]
-  ): PartialFunction[(ActorContext[Command], Command), Behavior[Command]] = { (ctx, msg) =>
-    msg match
-      case RegisterFirestation(ref) =>
-        ref ! Firestation.FirestationRegistrationResponse(
-          ctx.messageAdapter[Firestation.ZoneMessage](FirestationUpdate.apply),
-          true
-        )
-        ref ! Firestation.UpdateZoneStatus(zoneState.zone) // send immediately the current state to the firestation
-        nextState(zoneState.focus(_.firestation).replace(Some(ref)))
+  ): PartialFunction[(ActorContext[Command], Command), Behavior[Command]] = { case (ctx, RegisterFirestation(ref)) =>
+    ref ! Firestation.FirestationRegistrationResponse(
+      ctx.messageAdapter[Firestation.ZoneMessage](FirestationUpdate.apply),
+      true
+    )
+    ref ! Firestation.UpdateZoneStatus(zoneState.zone) // send immediately the current state to the firestation
+    nextState(zoneState.focus(_.firestation).replace(Some(ref)))
   }
 
   object Service:
