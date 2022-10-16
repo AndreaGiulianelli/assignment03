@@ -2,15 +2,14 @@ package firestation.gui
 
 import akka.actor.typed.ActorRef
 import firestation.Firestation
-import model.CityModel.Zone
-import model.CityModel.ZoneStatus
+import model.CityModel.{FirestationService, Zone, ZoneStatus}
 
 import java.awt.{Color, Component, Dimension}
 import javax.swing.{Box, BoxLayout, JButton, JFrame, JLabel, JPanel, SwingUtilities}
 
 trait FirestationViewer:
   def display(): Unit
-  def update(zone: Zone): Unit
+  def update(firestation: FirestationService): Unit
 
 object FirestationViewer:
   def apply(zone: Zone, width: Int, height: Int, firestation: ActorRef[Firestation.Command]): FirestationViewer =
@@ -28,10 +27,14 @@ object FirestationViewer:
     private val statusLayout = BoxLayout(statusPanel, BoxLayout.Y_AXIS)
     private val zoneIdLabel = JLabel("Zone id: ")
     private val zoneStatusLabel = JLabel("Zone status: ")
+    private val zoneSensorsLabel = JLabel("Zone sensors: ")
+    private val firestationStatusLabel = JLabel("Firestation status: ")
     private val managementBtn = JButton("Manage")
     statusPanel.setLayout(statusLayout)
     statusPanel.add(zoneIdLabel)
     statusPanel.add(zoneStatusLabel)
+    statusPanel.add(zoneSensorsLabel)
+    statusPanel.add(firestationStatusLabel)
     statusPanel.add(managementBtn)
     zoneIdLabel.setAlignmentX(Component.LEFT_ALIGNMENT)
     zoneStatusLabel.setAlignmentX(Component.LEFT_ALIGNMENT)
@@ -54,9 +57,16 @@ object FirestationViewer:
     setContentPane(mainPanel)
 
     override def display(): Unit = SwingUtilities.invokeLater(() => setVisible(true))
-    override def update(zone: Zone): Unit =
-      zoneMap = zoneMap + (zone.zoneId -> zone)
-      render()
+
+    override def update(firestation: FirestationService): Unit =
+      if firestation.associatedZone.zoneId == zone.zoneId then
+        zoneIdLabel.setText(s"Zone id: ${firestation.associatedZone.zoneId}")
+        zoneStatusLabel.setText(s"Zone status: ${firestation.associatedZone.status}")
+        zoneSensorsLabel.setText(s"Zone sensors: ${firestation.associatedZone.sensors}")
+        firestationStatusLabel.setText(s"Firestation status: ${firestation.status}")
+      else
+        zoneMap = zoneMap + (zone.zoneId -> zone)
+        render()
 
     private def render(): Unit =
       zonesPanel.removeAll()
