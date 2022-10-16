@@ -6,6 +6,7 @@ import akka.actor.typed.scaladsl.*
 import akka.cluster.ClusterEvent.MemberExited
 import pluviometer.Pluviometer
 import firestation.Firestation
+import model.CityModel.Zone
 import util.Message
 
 object ZoneControl:
@@ -18,4 +19,9 @@ object ZoneControl:
   // todo: check if I can insert directly MemberExit or I need Member Event
   case class PluviometerExit(event: MemberExited) extends Command
 
-  def apply(): Behavior[Command] = Behaviors.empty
+  def apply(zone: Zone): Behavior[Command] = Behaviors.empty
+
+  object Service:
+    import akka.actor.typed.receptionist.ServiceKey
+    def serviceKey(zone: Zone): ServiceKey[ZoneControl.Command] =
+      ServiceKey[ZoneControl.Command](s"zone${zone.zoneId}")
