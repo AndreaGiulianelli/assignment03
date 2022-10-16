@@ -14,8 +14,12 @@ trait FirestationViewer:
 object FirestationViewer:
   def apply(zone: Zone, width: Int, height: Int, firestation: ActorRef[Firestation.Command]): FirestationViewer =
     FirestationViewerImpl(zone, width, height, firestation)
-  private class FirestationViewerImpl(zone: Zone, width: Int, height: Int, firestation: ActorRef[Firestation.Command])
-      extends JFrame
+  private class FirestationViewerImpl(
+      private var zone: Zone,
+      width: Int,
+      height: Int,
+      firestation: ActorRef[Firestation.Command]
+  ) extends JFrame
       with FirestationViewer:
 
     private var zoneMap: Map[Int, Zone] = Map.empty
@@ -39,6 +43,17 @@ object FirestationViewer:
     zoneIdLabel.setAlignmentX(Component.LEFT_ALIGNMENT)
     zoneStatusLabel.setAlignmentX(Component.LEFT_ALIGNMENT)
 
+    managementBtn.addActionListener { _ =>
+      if zone.status == ALARM() then
+        // set under management
+        firestation ! Firestation.AlarmUnderManagement
+        managementBtn.setText("Solve")
+      else if zone.status == UNDER_MANAGEMENT() then
+        // solve
+        firestation ! Firestation.AlarmSolved
+        managementBtn.setText("Management")
+    }
+
     // Other zones status
     private val zonesPanel = JPanel()
     render()
@@ -58,19 +73,24 @@ object FirestationViewer:
 
     override def display(): Unit = SwingUtilities.invokeLater(() => setVisible(true))
 
-    override def update(firestation: FirestationService): Unit =
+    override def update(firestation: FirestationService): Unit = SwingUtilities.invokeLater { () =>
       if firestation.associatedZone.zoneId == zone.zoneId then
+        zone = firestation.associatedZone
         zoneIdLabel.setText(s"Zone id: ${firestation.associatedZone.zoneId}")
         zoneStatusLabel.setText(s"Zone status: ${firestation.associatedZone.status}")
         zoneSensorsLabel.setText(s"Zone sensors: ${firestation.associatedZone.sensors}")
         firestationStatusLabel.setText(s"Firestation status: ${firestation.status}")
       else
-        zoneMap = zoneMap + (zone.zoneId -> zone)
+        zoneMap = zoneMap + (firestation.associatedZone.zoneId -> firestation.associatedZone)
         render()
+    }
 
     private def render(): Unit =
       zonesPanel.removeAll()
+      zonesPanel.revalidate()
+      zonesPanel.repaint()
       zoneMap.foreach((_, zoneToDisplay) => zonesPanel.add(createZoneRender(zoneToDisplay)))
+      println("---------------" + zoneMap.values.toString())
 
     private def createZoneRender(zoneToDisplay: Zone): JPanel =
       val panel = JPanel()

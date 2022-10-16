@@ -119,17 +119,18 @@ object Firestation:
         if firestation.status == FREE() then actor.free(firestation, statuses)
         else actor.busy(firestation, statuses)
 
-      (ctx, msg) =>
-        msg match
-          case FirestationListUpdate(firestationServiceKey.Listing(list)) =>
-            val updatedActor = this.focus(_.firestations).replace(list)
-            _changeState(updatedActor, firestation, statuses)
-          case FirestationUpdate(ref, station) =>
-            val updatedStatuses = statuses + (ref -> station)
-            viewer ! FirestationViewActor.Command.UpdateFirestation(station)
-            _changeState(this, firestation, updatedStatuses)
-          case UpdateZoneStatus(zone) =>
-            val updatedFirestation = firestation.focus(_.associatedZone).replace(zone)
-            firestations ! FirestationUpdate(ctx.self, updatedFirestation) // update other firestations
-            viewer ! FirestationViewActor.Command.UpdateFirestation(updatedFirestation)
-            _changeState(this, updatedFirestation, statuses)
+      {
+        case (ctx, FirestationListUpdate(firestationServiceKey.Listing(list))) =>
+          val updatedActor = this.focus(_.firestations).replace(list)
+          list.diff(firestations) ! FirestationUpdate(ctx.self, firestation) // send data to new firestations
+          _changeState(updatedActor, firestation, statuses)
+        case (_, FirestationUpdate(ref, station)) =>
+          val updatedStatuses = statuses + (ref -> station)
+          viewer ! FirestationViewActor.Command.UpdateFirestation(station)
+          _changeState(this, firestation, updatedStatuses)
+        case (ctx, UpdateZoneStatus(zone)) =>
+          val updatedFirestation = firestation.focus(_.associatedZone).replace(zone)
+          firestations ! FirestationUpdate(ctx.self, updatedFirestation) // update other firestations
+          viewer ! FirestationViewActor.Command.UpdateFirestation(updatedFirestation)
+          _changeState(this, updatedFirestation, statuses)
+      }

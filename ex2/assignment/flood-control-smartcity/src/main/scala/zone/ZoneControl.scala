@@ -150,14 +150,16 @@ object ZoneControl:
       zoneState: ZoneState,
       nextState: ZoneState => Behavior[Command]
   ): PartialFunction[(ActorContext[Command], Command), Behavior[Command]] = {
-    case (ctx, PluviometerExit(MemberExited(member))) =>
-      val updatedZoneState = zoneState
-        .focus(_.pluviometers)
-        .modify(_.filter(_.path.address != member.address))
-        .focus(_.zone)
-        .modify(_.focus(_.sensors).modify(_ - 1))
-      zoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
-      nextState(updatedZoneState)
+    case (_, PluviometerExit(MemberExited(member))) =>
+      if zoneState.pluviometers.map(_.path.address).contains(member.address) then
+        val updatedZoneState = zoneState
+          .focus(_.pluviometers)
+          .modify(_.filter(_.path.address != member.address))
+          .focus(_.zone)
+          .modify(_.focus(_.sensors).modify(_ - 1))
+        zoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
+        nextState(updatedZoneState)
+      else nextState(zoneState)
   }
   private def handleFirestationRegistration(
       zoneState: ZoneState,
