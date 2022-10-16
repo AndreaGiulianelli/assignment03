@@ -9,6 +9,7 @@ import model.CityModel.Zone
 object FirestationViewActor:
   enum Command:
     case Start(zone: Zone, width: Int, height: Int, firestation: ActorRef[Firestation.Command])
+    case Update(zone: Zone)
 
   def apply(): Behavior[Command] = init()
 
@@ -19,4 +20,8 @@ object FirestationViewActor:
       initialized(viewer)
     }
 
-  private def initialized(viewer: FirestationViewer): Behavior[Command] = Behaviors.empty
+  private def initialized(viewer: FirestationViewer): Behavior[Command] = Behaviors.receiveMessagePartial {
+    case Command.Update(zone) =>
+      viewer.update(zone)
+      Behaviors.same
+  }
