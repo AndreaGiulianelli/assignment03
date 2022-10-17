@@ -62,7 +62,7 @@ object ZoneControl:
   ): Behavior[Command] =
     def _check(
         updateAlarmMap: Map[ActorRef[Pluviometer.Command], Boolean],
-        zoneToCheck: ZoneState = zoneState
+        zoneToCheck: ZoneState
     ): Behavior[Command] =
       if updateAlarmMap.keys.size >= zoneToCheck.pluviometers.size then
         if updateAlarmMap
@@ -88,13 +88,13 @@ object ZoneControl:
               ctx.log.info(
                 s"------------ ZONE ${zoneState.zone.zoneId} RECEIVED OTHER STUFF ${p -> isInAlarm} - CHECK --------------"
               )
-              _check(updateAlarmMap)
+              _check(updateAlarmMap, zoneState)
             case Alarm(p) =>
               val updateAlarmMap = alarmMap + (p -> true)
               ctx.log.info(
                 s"------------ ZONE ${zoneState.zone.zoneId} RECEIVED OTHER STUFF ${p -> true} - CHECK --------------"
               )
-              _check(updateAlarmMap)
+              _check(updateAlarmMap, zoneState)
             case other =>
               stash.stash(other)
               Behaviors.same
