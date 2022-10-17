@@ -6,8 +6,6 @@ import util.CborSerializable
 import scala.util.Random
 
 object CityModel:
-  type Point2D = (Int, Int)
-
   trait SmartCityParameters:
     /** The number of zones in the city
       * @return
