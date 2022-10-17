@@ -3,7 +3,6 @@ package firestation.gui
 import akka.actor.typed.ActorRef
 import firestation.Firestation
 import model.CityModel.{ALARM, BUSY, FREE, FirestationService, NORMAL, UNDER_MANAGEMENT, Zone, ZoneStatus}
-
 import java.awt.{Color, Component, Dimension}
 import javax.swing.{Box, BoxLayout, JButton, JFrame, JLabel, JPanel, SwingUtilities}
 
@@ -22,7 +21,7 @@ object FirestationViewer:
   ) extends JFrame
       with FirestationViewer:
 
-    private var zoneMap: Map[Int, Zone] = Map.empty
+    private var zoneMap: Map[Int, FirestationService] = Map.empty
     setTitle(s"Zone#${zone.zoneId}")
     setSize(width, height)
 
@@ -89,7 +88,7 @@ object FirestationViewer:
         firestationStatusLabel.setText(s"Firestation status: ${textFirestationMap(firestation.status)}")
         firestationStatusLabel.setBackground(colorFirestationMap(firestation.status))
       else
-        zoneMap = zoneMap + (firestation.associatedZone.zoneId -> firestation.associatedZone)
+        zoneMap = zoneMap + (firestation.associatedZone.zoneId -> firestation)
         render()
     }
 
@@ -97,14 +96,17 @@ object FirestationViewer:
       zonesPanel.removeAll()
       zonesPanel.revalidate()
       zonesPanel.repaint()
-      zoneMap.foreach((_, zoneToDisplay) => zonesPanel.add(createZoneRender(zoneToDisplay)))
-      println("---------------" + zoneMap.values.toString())
+      zoneMap.foreach((_, firestation) => zonesPanel.add(createFirestationRender(firestation)))
 
-    private def createZoneRender(zoneToDisplay: Zone): JPanel =
+    private def createFirestationRender(firestation: FirestationService): JPanel =
+      val zoneToDisplay = firestation.associatedZone
       val panel = JPanel()
       val layout = BoxLayout(panel, BoxLayout.Y_AXIS)
       val status = JLabel(
-        s"Zone ${zoneToDisplay.zoneId} - sensors: ${zoneToDisplay.sensors} - status: ${textZoneMap(zoneToDisplay.status)}"
+        s"Zone ${zoneToDisplay.zoneId} " +
+          s"- sensors: ${zoneToDisplay.sensors} " +
+          s"- status: ${textZoneMap(zoneToDisplay.status)} " +
+          s"- firestation: ${textFirestationMap(firestation.status)}"
       )
       panel.setLayout(layout)
       status.setBackground(colorZoneMap(zoneToDisplay.status))
