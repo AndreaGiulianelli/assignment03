@@ -2,12 +2,17 @@ package firestation.gui
 
 import akka.actor.typed.ActorRef
 import firestation.Firestation
-import model.CityModel.{ALARM, BUSY, FREE, FirestationService, NORMAL, UNDER_MANAGEMENT, Zone, ZoneStatus}
+import model.CityModel.{ALARM, BUSY, FREE, FirestationService, NORMAL, UNDER_MANAGEMENT, Zone}
 import java.awt.{Color, Component, Dimension}
 import javax.swing.{Box, BoxLayout, JButton, JFrame, JLabel, JPanel, SwingUtilities}
 
 trait FirestationViewer:
+  /** Display the dashboard */
   def display(): Unit
+  /** Update the dashboard state
+    * @param firestation
+    *   the updated firestation
+    */
   def update(firestation: FirestationService): Unit
 
 object FirestationViewer:
@@ -62,15 +67,17 @@ object FirestationViewer:
     //Main panel
     private val mainPanel = JPanel()
     private val mainLayout = BoxLayout(mainPanel, BoxLayout.Y_AXIS)
-    val zonesTitle = JLabel("Other zones:")
+    private val otherZoneSectionTitle = JLabel("Other zones:")
     mainPanel.setLayout(mainLayout)
     mainPanel.add(statusPanel)
     mainPanel.add(Box.createRigidArea(Dimension(0, 50)))
-    mainPanel.add(zonesTitle)
+    mainPanel.add(otherZoneSectionTitle)
     mainPanel.add(zonesPanel)
     statusPanel.setAlignmentX(Component.LEFT_ALIGNMENT)
     zonesPanel.setAlignmentX(Component.LEFT_ALIGNMENT)
     setContentPane(mainPanel)
+
+    // Maps for text and colors based on status
     private val textZoneMap = Map(NORMAL() -> "Normal", ALARM() -> "Alarm", UNDER_MANAGEMENT() -> "Under management")
     private val textFirestationMap = Map(FREE() -> "Free", BUSY() -> "Busy")
     private val colorZoneMap = Map(NORMAL() -> Color.green, ALARM() -> Color.red, UNDER_MANAGEMENT() -> Color.orange)
@@ -113,7 +120,3 @@ object FirestationViewer:
       status.setOpaque(true)
       panel.add(status)
       panel
-
-object tryGUI extends App:
-  val gui = FirestationViewer(0, 400, 400, null)
-  gui.display()
