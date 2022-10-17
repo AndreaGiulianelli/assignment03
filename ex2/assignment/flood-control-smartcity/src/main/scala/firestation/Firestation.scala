@@ -121,7 +121,7 @@ object Firestation:
 
       {
         case (ctx, FirestationListUpdate(firestationServiceKey.Listing(list))) =>
-          val updatedActor = this.focus(_.firestations).replace(list)
+          val updatedActor = this.focus(_.firestations).replace(list.filter(_ != ctx.self))
           list.diff(firestations) ! FirestationUpdate(ctx.self, firestation) // send data to new firestations
           _changeState(updatedActor, firestation, statuses)
         case (_, FirestationUpdate(ref, station)) =>
