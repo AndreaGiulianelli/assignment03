@@ -9,21 +9,16 @@ import util.Message
 import zone.ZoneControl
 import util.Utils.AkkaUtils.*
 
-/*
-  todo: gui is launched after the firestation received ok from the zone. Inoltre fare in modo che subito dopo la zona invii anche il suo stato così al volo in modo tale che si setti.
- */
-
 object Firestation:
   val firestationServiceKey = ServiceKey[Firestation.Command]("firestation-servicekey")
 
   sealed trait Command extends Message
   case object Start extends Command
   case class SearchZoneResult(listing: Receptionist.Listing) extends Command
-  private case class FirestationUpdate(ref: ActorRef[Command], firestation: FirestationService)
-      extends Command //todo: whenever send this message all must be updated
+  private case class FirestationUpdate(ref: ActorRef[Command], firestation: FirestationService) extends Command
   case object AlarmUnderManagement extends Command
   case object AlarmSolved extends Command
-  case class UpdateZoneStatus(zone: Zone) extends Command // todo: update dell'oggetto in firestationService
+  case class UpdateZoneStatus(zone: Zone) extends Command
   case class FirestationRegistrationResponse(zoneRef: ActorRef[ZoneMessage], accepted: Boolean) extends Command
   case class FirestationListUpdate(listing: Receptionist.Listing) extends Command
 
@@ -52,14 +47,16 @@ object Firestation:
     Behaviors.receive { (ctx, msg) =>
       msg match
         case FirestationRegistrationResponse(ref, true) =>
+          // Now the firestation is associated with the zone, so the firestation can effectively start
           ctx.system.receptionist ! Receptionist.register(firestationServiceKey, ctx.self)
           ctx.system.receptionist ! Receptionist.Subscribe(
             firestationServiceKey,
             ctx.messageAdapter[Receptionist.Listing](FirestationListUpdate.apply)
           )
+          // Start also the dashboard
           val viewActor = ctx.spawn(FirestationViewActor(), "viewer")
           viewActor ! FirestationViewActor.Command.Start(firestation.associatedZone, 400, 400, ctx.self)
-          FirestationActor(ref, viewActor).free(firestation)
+          FirestationActor(ref, viewActor).free(firestation) // start the effective behavior of the firestation
         case FirestationRegistrationResponse(ref, false) =>
           idle(firestation) // if it's not accepted by the zone, return to idle
         case _ => Behaviors.unhandled
@@ -72,65 +69,57 @@ object Firestation:
   ):
     import monocle.syntax.all._
 
-    def free(
-        firestation: FirestationService,
-        statuses: Map[ActorRef[Firestation.Command], FirestationService] = Map.empty
-    ): Behavior[Command] =
-      Behaviors.receivePartial {
-        handleUpdates(firestation, statuses).orElse { (ctx, msg) =>
-          msg match
-            case AlarmUnderManagement =>
-              if firestation.associatedZone.status == ALARM() then
-                val updatedFirestation = firestation.focus(_.status).replace(BUSY())
-                firestations ! FirestationUpdate(ctx.self, updatedFirestation)
-                zoneRef ! UnderManagement
-                viewer ! FirestationViewActor.Command.UpdateFirestation(updatedFirestation)
-                busy(updatedFirestation, statuses)
-              else Behaviors.same
-            case _ => Behaviors.unhandled
-        }
+    def free(firestation: FirestationService): Behavior[Command] = Behaviors.receivePartial {
+      handleUpdates(firestation).orElse { (ctx, msg) =>
+        msg match
+          case AlarmUnderManagement =>
+            if firestation.associatedZone.status == ALARM() then
+              val updatedFirestation = firestation.focus(_.status).replace(BUSY())
+              zoneRef ! UnderManagement
+              firestations ! FirestationUpdate(ctx.self, updatedFirestation)
+              viewer ! FirestationViewActor.Command.UpdateFirestation(updatedFirestation)
+              busy(updatedFirestation)
+            else Behaviors.same
+          case _ => Behaviors.unhandled
       }
+    }
 
-    private def busy(
-        firestation: FirestationService,
-        statuses: Map[ActorRef[Firestation.Command], FirestationService] = Map.empty
-    ): Behavior[Command] = Behaviors.receivePartial {
-      handleUpdates(firestation, statuses).orElse { (ctx, msg) =>
+    private def busy(firestation: FirestationService): Behavior[Command] = Behaviors.receivePartial {
+      handleUpdates(firestation).orElse { (ctx, msg) =>
         msg match
           case AlarmSolved =>
             val updatedFirestation = firestation.focus(_.status).replace(FREE())
-            firestations ! FirestationUpdate(ctx.self, updatedFirestation)
             zoneRef ! Solved
+            firestations ! FirestationUpdate(ctx.self, updatedFirestation)
             viewer ! FirestationViewActor.Command.UpdateFirestation(updatedFirestation)
-            free(updatedFirestation, statuses)
+            free(updatedFirestation)
           case _ => Behaviors.unhandled
       }
     }
 
     private def handleUpdates(
-        firestation: FirestationService,
-        statuses: Map[ActorRef[Firestation.Command], FirestationService] = Map.empty
+        firestation: FirestationService
     ): PartialFunction[(ActorContext[Command], Command), Behavior[Command]] =
       def _changeState(
           actor: FirestationActor,
-          firestation: FirestationService,
-          statuses: Map[ActorRef[Firestation.Command], FirestationService]
+          firestation: FirestationService
       ): Behavior[Command] =
-        if firestation.status == FREE() then actor.free(firestation, statuses)
-        else actor.busy(firestation, statuses)
+        if firestation.status == FREE() then actor.free(firestation)
+        else actor.busy(firestation)
 
       {
         case (ctx, FirestationListUpdate(firestationServiceKey.Listing(list))) =>
+          // update the known firestations (excluding myself)
           val updatedActor = this.focus(_.firestations).replace(list.filter(_ != ctx.self))
-          list.diff(firestations) ! FirestationUpdate(ctx.self, firestation) // send data to new firestations
-          _changeState(updatedActor, firestation, statuses)
-        case (_, FirestationUpdate(ref, station)) =>
-          val updatedStatuses = statuses + (ref -> station)
+          // send data to new firestations
+          list.diff(firestations) ! FirestationUpdate(ctx.self, firestation)
+          _changeState(updatedActor, firestation)
+        case (_, FirestationUpdate(_, station)) =>
           viewer ! FirestationViewActor.Command.UpdateFirestation(station)
-          _changeState(this, firestation, updatedStatuses)
+          _changeState(this, firestation)
         case (ctx, UpdateZoneStatus(zone)) =>
           val updatedFirestation = firestation.focus(_.associatedZone).replace(zone)
           firestations ! FirestationUpdate(ctx.self, updatedFirestation) // update other firestations
           viewer ! FirestationViewActor.Command.UpdateFirestation(updatedFirestation)
-          _changeState(this, updatedFirestation, statuses)
+          _changeState(this, updatedFirestation)
       }
