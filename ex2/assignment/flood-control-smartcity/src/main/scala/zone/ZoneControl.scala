@@ -49,55 +49,56 @@ object ZoneControl:
           ctx.messageAdapter[Pluviometer.DataResponse](PluviometerStatus.apply)
         )
         ctx.log.info(s"------------ ZONE ${zoneState.zone.zoneId} RECEIVED FIRST ALARM - CHECK --------------")
-        preAlarm(zoneState, Map(pluviometer -> true))
+        Behaviors.withStash(100) { stash =>
+          preAlarm(stash, zoneState, Map(pluviometer -> true))
+        }
       }
   }
 
   private def preAlarm(
+      stash: StashBuffer[Command],
       zoneState: ZoneState,
       alarmMap: Map[ActorRef[Pluviometer.Command], Boolean]
   ): Behavior[Command] =
     def _check(
-        stash: StashBuffer[Command],
-        updateAlarmMap: Map[ActorRef[Pluviometer.Command], Boolean]
+        updateAlarmMap: Map[ActorRef[Pluviometer.Command], Boolean],
+        zoneToCheck: ZoneState = zoneState
     ): Behavior[Command] =
-      if updateAlarmMap.keys.size >= zoneState.pluviometers.size then
+      if updateAlarmMap.keys.size >= zoneToCheck.pluviometers.size then
         if updateAlarmMap
-            .filter((k, v) => zoneState.pluviometers.contains(k) && v)
-            .size >= Math.floor(zoneState.pluviometers.size / 2) + 1
+            .filter((k, v) => zoneToCheck.pluviometers.contains(k) && v)
+            .size >= Math.floor(zoneToCheck.pluviometers.size / 2) + 1
         then
-          println(s"------------ ZONE ${zoneState.zone.zoneId} ALAAAARMMMMMM --------------")
-          val updatedZoneState = zoneState.focus(_.zone).modify(_.focus(_.status).replace(ALARM()))
+          println(s"------------ ZONE ${zoneToCheck.zone.zoneId} ALAAAARMMMMMM --------------")
+          val updatedZoneState = zoneToCheck.focus(_.zone).modify(_.focus(_.status).replace(ALARM()))
           updatedZoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
           stash.unstashAll(alarm(updatedZoneState))
         else
-          println(s"------------ ZONE ${zoneState.zone.zoneId} FALSE ALARM --------------")
-          stash.unstashAll(normal(zoneState))
-      else preAlarm(zoneState, updateAlarmMap)
+          println(s"------------ ZONE ${zoneToCheck.zone.zoneId} FALSE ALARM --------------")
+          stash.unstashAll(normal(zoneToCheck))
+      else preAlarm(stash, zoneToCheck, updateAlarmMap)
 
     Behaviors.receivePartial {
-      handleFirestationRegistration(zoneState, z => preAlarm(z, alarmMap = alarmMap))
-        .orElse(handlePluviometerExit(zoneState, z => preAlarm(z, alarmMap = alarmMap)))
-        .orElse((ctx, msg) =>
-          Behaviors.withStash(100) { stash =>
-            msg match
-              case PluviometerStatus(Pluviometer.Status(p, isInAlarm)) =>
-                val updateAlarmMap = alarmMap + (p -> isInAlarm)
-                ctx.log.info(
-                  s"------------ ZONE ${zoneState.zone.zoneId} RECEIVED OTHER STUFF ${p -> isInAlarm} - CHECK --------------"
-                )
-                _check(stash, updateAlarmMap)
-              case Alarm(p) =>
-                val updateAlarmMap = alarmMap + (p -> true)
-                ctx.log.info(
-                  s"------------ ZONE ${zoneState.zone.zoneId} RECEIVED OTHER STUFF ${p -> true} - CHECK --------------"
-                )
-                _check(stash, updateAlarmMap)
-              case other =>
-                stash.stash(other)
-                Behaviors.same
-          }
-        )
+      handleFirestationRegistration(zoneState, z => preAlarm(stash, z, alarmMap))
+        .orElse(handlePluviometerExit(zoneState, z => _check(alarmMap, z)))
+        .orElse { (ctx, msg) =>
+          msg match
+            case PluviometerStatus(Pluviometer.Status(p, isInAlarm)) =>
+              val updateAlarmMap = alarmMap + (p -> isInAlarm)
+              ctx.log.info(
+                s"------------ ZONE ${zoneState.zone.zoneId} RECEIVED OTHER STUFF ${p -> isInAlarm} - CHECK --------------"
+              )
+              _check(updateAlarmMap)
+            case Alarm(p) =>
+              val updateAlarmMap = alarmMap + (p -> true)
+              ctx.log.info(
+                s"------------ ZONE ${zoneState.zone.zoneId} RECEIVED OTHER STUFF ${p -> true} - CHECK --------------"
+              )
+              _check(updateAlarmMap)
+            case other =>
+              stash.stash(other)
+              Behaviors.same
+        }
     }
 
   private def alarm(
