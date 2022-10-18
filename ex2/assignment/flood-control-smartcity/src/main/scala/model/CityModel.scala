@@ -45,8 +45,7 @@ object CityModel:
       alarmThreshold: Double = Random.between(0.5, 1)
   ) extends CborSerializable:
     def inAlarm: Boolean =
-      val r = Random.between(0.0, 1.0)
-      r >= alarmThreshold
+      Random.between(0.0, 1.0) >= alarmThreshold
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(

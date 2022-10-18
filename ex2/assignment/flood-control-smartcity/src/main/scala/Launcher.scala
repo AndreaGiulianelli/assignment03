@@ -1,12 +1,7 @@
-import model.CityModel.{FirestationService, PluviometerSensor, SmartCityParameters, Zone, generateCity}
-import pluviometer.Pluviometer
-import firestation.Firestation
-import util.Utils.{deployFireStation, deployPluviometer, deployZone, startNode}
-import zone.ZoneControl
+import model.CityModel.{SmartCityParameters, generateCity}
+import util.Utils.{deployFireStation, deployPluviometer, deployZone}
 
 object Launcher:
-  import model.CityModel.given
-
   @main def main(): Unit =
     given SmartCityParameters with
       override val zones: Int = 5

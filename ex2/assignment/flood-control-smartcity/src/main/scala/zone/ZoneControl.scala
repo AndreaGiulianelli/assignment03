@@ -8,7 +8,7 @@ import akka.cluster.typed.{Cluster, Subscribe}
 import akka.cluster.ClusterEvent.MemberExited
 import pluviometer.Pluviometer
 import firestation.Firestation
-import model.CityModel.{ALARM, NORMAL, UNDER_MANAGEMENT, Zone, ZoneStatus}
+import model.CityModel.{ALARM, NORMAL, UNDER_MANAGEMENT, Zone}
 import pluviometer.Pluviometer.DataResponse
 import util.Message
 import util.Utils.AkkaUtils.*
@@ -18,11 +18,12 @@ object ZoneControl:
   sealed trait Command extends Message
   private case class PluviometerStatus(status: Pluviometer.DataResponse) extends Command
   private case class FirestationUpdate(update: Firestation.ZoneMessage) extends Command
+  private case class PluviometerExit(event: MemberExited) extends Command
   case class Alarm(pluviometer: ActorRef[Pluviometer.Command]) extends Command
   case class RegisterPluviometer(pluviometer: ActorRef[Pluviometer.Command]) extends Command
   case class RegisterFirestation(firestation: ActorRef[Firestation.Command]) extends Command
-  case class PluviometerExit(event: MemberExited) extends Command
 
+  // case class useful to wrap the zone actor state across fsm states.
   private case class ZoneState(
       zone: Zone,
       pluviometers: Set[ActorRef[Pluviometer.Command]],
@@ -61,14 +62,12 @@ object ZoneControl:
       alarmMap: Map[ActorRef[Pluviometer.Command], Boolean]
   ): Behavior[Command] =
     def _check(
-        updateAlarmMap: Map[ActorRef[Pluviometer.Command], Boolean],
+        updatedAlarmMap: Map[ActorRef[Pluviometer.Command], Boolean],
         zoneToCheck: ZoneState
     ): Behavior[Command] =
-      if updateAlarmMap.keys.size >= zoneToCheck.pluviometers.size then
-        if updateAlarmMap
-            .filter((k, v) => zoneToCheck.pluviometers.contains(k) && v)
-            .size >= Math.floor(zoneToCheck.pluviometers.size / 2) + 1
-        then
+      val activeAlarmMap = updatedAlarmMap.filter((k, _) => zoneToCheck.pluviometers.contains(k))
+      if activeAlarmMap.keys.size >= zoneToCheck.pluviometers.size then
+        if activeAlarmMap.filter((_, v) => v).size >= Math.floor(zoneToCheck.pluviometers.size / 2) + 1 then
           println(s"------------ ZONE ${zoneToCheck.zone.zoneId} ALAAAARMMMMMM --------------")
           val updatedZoneState = zoneToCheck.focus(_.zone).modify(_.focus(_.status).replace(ALARM()))
           updatedZoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
@@ -76,7 +75,7 @@ object ZoneControl:
         else
           println(s"------------ ZONE ${zoneToCheck.zone.zoneId} FALSE ALARM --------------")
           stash.unstashAll(normal(zoneToCheck))
-      else preAlarm(stash, zoneToCheck, updateAlarmMap)
+      else preAlarm(stash, zoneToCheck, updatedAlarmMap)
 
     Behaviors.receivePartial {
       handleFirestationRegistration(zoneState, z => preAlarm(stash, z, alarmMap))
@@ -110,11 +109,11 @@ object ZoneControl:
       .orElse { case (ctx, FirestationUpdate(update)) =>
         update match
           case Firestation.UnderManagement =>
-            val updatedZoneState =
-              zoneState.focus(_.zone).modify(_.focus(_.status).replace(UNDER_MANAGEMENT()))
+            val updatedZoneState = zoneState.focus(_.zone).modify(_.focus(_.status).replace(UNDER_MANAGEMENT()))
             ctx.log.info(s"------------ ZONE ${zoneState.zone.zoneId} UNDER MANAGEMENT --------------")
             updatedZoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
             alarmUnderManagement(updatedZoneState)
+          case _ => Behaviors.same
       }
   }
 
@@ -130,6 +129,7 @@ object ZoneControl:
             val updatedZoneState = zoneState.focus(_.zone).modify(_.focus(_.status).replace(NORMAL()))
             updatedZoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
             normal(updatedZoneState)
+          case _ => Behaviors.same
       }
   }
 

@@ -4,7 +4,6 @@ import akka.actor.typed.receptionist.Receptionist
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.*
 import model.CityModel.PluviometerSensor
-import pluviometer.Pluviometer.PluviometerRegistrationResponse
 import util.Message
 import zone.ZoneControl
 
@@ -14,10 +13,10 @@ import scala.util.Random
 object Pluviometer:
   sealed trait Command extends Message
   private case object GenerateData extends Command
+  private case class SearchZoneResult(listing: Receptionist.Listing) extends Command
   case object Start extends Command
   case class GetStatus(replyTo: ActorRef[DataResponse]) extends Command
   case class PluviometerRegistrationResponse(zoneRef: ActorRef[ZoneControl.Command], accepted: Boolean) extends Command
-  case class SearchZoneResult(listing: Receptionist.Listing) extends Command
 
   sealed trait DataResponse extends Message
   case class Status(ref: ActorRef[Command], alarm: Boolean) extends DataResponse
@@ -63,11 +62,13 @@ object Pluviometer:
             )
             working(pluviometer, zoneRef)
           else Behaviors.same
-        case PluviometerRegistrationResponse(_, false) =>
-          ctx.log.info(
-            s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} FAILED REGISTER --------"
-          )
-          idle(pluviometer) // if it's not accepted by the zone, return to idle
+        case PluviometerRegistrationResponse(ref, false) =>
+          if zoneRef == ref then
+            ctx.log.info(
+              s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} FAILED REGISTER --------"
+            )
+            idle(pluviometer) // if it's not accepted by the zone, return to idle
+          else Behaviors.same
         case _ => Behaviors.unhandled
     }
 
