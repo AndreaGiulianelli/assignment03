@@ -27,63 +27,63 @@ object FirestationViewer:
       with FirestationViewer:
 
     private var zoneMap: Map[Int, FirestationService] = Map.empty
-    setTitle(s"Zone#${zone.zoneId}")
-    setSize(width, height)
-
     // Current zone status
     private val statusPanel = JPanel()
     private val statusLayout = BoxLayout(statusPanel, BoxLayout.Y_AXIS)
     private val zoneIdLabel = JLabel("Zone id: ")
     private val zoneStatusLabel = JLabel("Zone status: ")
-    zoneStatusLabel.setOpaque(true)
     private val zoneSensorsLabel = JLabel("Zone sensors: ")
     private val firestationStatusLabel = JLabel("Firestation status: ")
-    firestationStatusLabel.setOpaque(true)
     private val managementBtn = JButton("Manage")
-    statusPanel.setLayout(statusLayout)
-    statusPanel.add(zoneIdLabel)
-    statusPanel.add(zoneStatusLabel)
-    statusPanel.add(zoneSensorsLabel)
-    statusPanel.add(firestationStatusLabel)
-    statusPanel.add(managementBtn)
-    zoneIdLabel.setAlignmentX(Component.LEFT_ALIGNMENT)
-    zoneStatusLabel.setAlignmentX(Component.LEFT_ALIGNMENT)
-
-    managementBtn.addActionListener { _ =>
-      if zone.status == ALARM() then
-        // set under management
-        firestation ! Firestation.AlarmUnderManagement
-        managementBtn.setText("Solve")
-      else if zone.status == UNDER_MANAGEMENT() then
-        // solve
-        firestation ! Firestation.AlarmSolved
-        managementBtn.setText("Management")
-    }
-
     // Other zones status
     private val zonesPanel = JPanel()
-    render()
 
     //Main panel
     private val mainPanel = JPanel()
     private val mainLayout = BoxLayout(mainPanel, BoxLayout.Y_AXIS)
     private val otherZoneSectionTitle = JLabel("Other zones:")
-    mainPanel.setLayout(mainLayout)
-    mainPanel.add(statusPanel)
-    mainPanel.add(Box.createRigidArea(Dimension(0, 50)))
-    mainPanel.add(otherZoneSectionTitle)
-    mainPanel.add(zonesPanel)
-    statusPanel.setAlignmentX(Component.LEFT_ALIGNMENT)
-    zonesPanel.setAlignmentX(Component.LEFT_ALIGNMENT)
-    setContentPane(mainPanel)
-
     // Maps for text and colors based on status
     private val textZoneMap = Map(NORMAL() -> "Normal", ALARM() -> "Alarm", UNDER_MANAGEMENT() -> "Under management")
     private val textFirestationMap = Map(FREE() -> "Free", BUSY() -> "Busy")
     private val colorZoneMap = Map(NORMAL() -> Color.green, ALARM() -> Color.red, UNDER_MANAGEMENT() -> Color.orange)
     private val colorFirestationMap = Map(FREE() -> Color.green, BUSY() -> Color.red)
 
-    override def display(): Unit = SwingUtilities.invokeLater(() => setVisible(true))
+    override def display(): Unit = SwingUtilities.invokeLater { () =>
+      setTitle(s"Zone#${zone.zoneId}")
+      setSize(width, height)
+
+      zoneStatusLabel.setOpaque(true)
+      firestationStatusLabel.setOpaque(true)
+      statusPanel.setLayout(statusLayout)
+      statusPanel.add(zoneIdLabel)
+      statusPanel.add(zoneStatusLabel)
+      statusPanel.add(zoneSensorsLabel)
+      statusPanel.add(firestationStatusLabel)
+      statusPanel.add(managementBtn)
+      zoneIdLabel.setAlignmentX(Component.LEFT_ALIGNMENT)
+      zoneStatusLabel.setAlignmentX(Component.LEFT_ALIGNMENT)
+
+      managementBtn.addActionListener { _ =>
+        if zone.status == ALARM() then
+          // set under management
+          firestation ! Firestation.AlarmUnderManagement
+          managementBtn.setText("Solve")
+        else if zone.status == UNDER_MANAGEMENT() then
+          // solve
+          firestation ! Firestation.AlarmSolved
+          managementBtn.setText("Management")
+      }
+
+      mainPanel.setLayout(mainLayout)
+      mainPanel.add(statusPanel)
+      mainPanel.add(Box.createRigidArea(Dimension(0, 50)))
+      mainPanel.add(otherZoneSectionTitle)
+      mainPanel.add(zonesPanel)
+      statusPanel.setAlignmentX(Component.LEFT_ALIGNMENT)
+      zonesPanel.setAlignmentX(Component.LEFT_ALIGNMENT)
+      setContentPane(mainPanel)
+      setVisible(true)
+    }
 
     override def update(firestation: FirestationService): Unit = SwingUtilities.invokeLater { () =>
       if firestation.associatedZone.zoneId == zone.zoneId then
