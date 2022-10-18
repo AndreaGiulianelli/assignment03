@@ -36,46 +36,49 @@ object SimulationViewer:
     private val start = JButton("Start")
     private val stop = JButton("Stop")
 
-    setTitle("Bodies Simulation")
-    setSize(w, h + 40)
-    setResizable(false)
-    val buttonsPanel = new JPanel
-    buttonsPanel.add(start)
-    buttonsPanel.add(stop)
-
-    val mainPanel = new JPanel
-    val mainLayout = new BorderLayout
-    mainPanel.setLayout(mainLayout)
-    mainPanel.add(BorderLayout.CENTER, panel)
-    mainPanel.add(BorderLayout.SOUTH, buttonsPanel)
-
-    setContentPane(mainPanel)
-
-    start.setEnabled(true)
-    start.addActionListener { _ =>
-      start.setEnabled(false)
-      if start.getText == "Resume" then coordinator ! Coordinator.Command.Resume
-      else
-        coordinator ! Coordinator.Command.Start
-        start.setText("Resume")
-      stop.setEnabled(true)
-    }
-
-    stop.setEnabled(false)
-    stop.addActionListener { _ =>
-      coordinator ! Coordinator.Command.Stop
-      start.setEnabled(true)
-      stop.setEnabled(false)
-    }
-    addWindowListener(new WindowAdapter():
-      override def windowClosing(ev: WindowEvent): Unit =
-        System.exit(-1)
-      override def windowClosed(ev: WindowEvent): Unit =
-        System.exit(-1)
-    )
+    private val buttonsPanel = new JPanel
+    private val mainPanel = new JPanel
+    private val mainLayout = new BorderLayout
 
     override def display(): Unit =
-      SwingUtilities.invokeLater(() => setVisible(true))
+      SwingUtilities.invokeLater { () =>
+        setTitle("Bodies Simulation")
+        setSize(w, h + 40)
+        setResizable(false)
+        buttonsPanel.add(start)
+        buttonsPanel.add(stop)
+
+        mainPanel.setLayout(mainLayout)
+        mainPanel.add(BorderLayout.CENTER, panel)
+        mainPanel.add(BorderLayout.SOUTH, buttonsPanel)
+
+        setContentPane(mainPanel)
+
+        start.setEnabled(true)
+        start.addActionListener { _ =>
+          start.setEnabled(false)
+          if start.getText == "Resume" then coordinator ! Coordinator.Command.Resume
+          else
+            coordinator ! Coordinator.Command.Start
+            start.setText("Resume")
+          stop.setEnabled(true)
+        }
+
+        stop.setEnabled(false)
+        stop.addActionListener { _ =>
+          coordinator ! Coordinator.Command.Stop
+          start.setEnabled(true)
+          stop.setEnabled(false)
+        }
+        addWindowListener(new WindowAdapter():
+          override def windowClosing(ev: WindowEvent): Unit =
+            System.exit(-1)
+
+          override def windowClosed(ev: WindowEvent): Unit =
+            System.exit(-1)
+        )
+        setVisible(true)
+      }
 
     def update(positions: Seq[P2d], vt: Double, iter: Long, boundary: Boundary): Unit =
       SwingUtilities.invokeLater { () =>
