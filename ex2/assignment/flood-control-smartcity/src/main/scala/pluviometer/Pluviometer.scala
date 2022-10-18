@@ -29,25 +29,16 @@ object Pluviometer:
       case Start =>
         val adapter = ctx.messageAdapter[Receptionist.Listing](SearchZoneResult.apply)
         ctx.system.receptionist ! Receptionist.Subscribe(zoneKey, adapter)
-        ctx.log.info(
-          s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} STARTED --------"
-        )
+        ctx.log.info(s"PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} STARTED")
         Behaviors.same
       case SearchZoneResult(zoneKey.Listing(list)) =>
-        ctx.log.info(
-          s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} OBTAINED RESULTS --------"
-        )
         if list.nonEmpty then
           val zoneRef = list.head
-          ctx.log.info(
-            s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} REQUEST REGISTER --------"
-          )
+          ctx.log.info(s"PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} TRY TO REGISTER")
           zoneRef ! ZoneControl.RegisterPluviometer(ctx.self)
           pairing(pluviometer, zoneRef)
         else
-          ctx.log.info(
-            s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} EMPTY RESULTS --------"
-          )
+          ctx.log.info(s"PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} EMPTY REFS")
           Behaviors.same
       case _ => Behaviors.unhandled
   }
@@ -57,16 +48,12 @@ object Pluviometer:
       msg match
         case PluviometerRegistrationResponse(ref, true) =>
           if zoneRef == ref then
-            ctx.log.info(
-              s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} REGISTERED --------"
-            )
+            ctx.log.info(s"PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} REGISTERED")
             working(pluviometer, zoneRef)
           else Behaviors.same
         case PluviometerRegistrationResponse(ref, false) =>
           if zoneRef == ref then
-            ctx.log.info(
-              s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} FAILED REGISTER --------"
-            )
+            ctx.log.info(s"PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} FAIL REGISTER")
             idle(pluviometer) // if it's not accepted by the zone, return to idle
           else Behaviors.same
         case _ => Behaviors.unhandled
@@ -78,15 +65,11 @@ object Pluviometer:
       Behaviors.receive { (ctx, msg) =>
         msg match
           case GenerateData =>
-            ctx.log.info(
-              s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} GENERATING.... --------"
-            )
+            ctx.log.info(s"PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} GENERATING...")
             if pluviometer.inAlarm then zoneRef ! ZoneControl.Alarm(ctx.self)
             Behaviors.same
           case GetStatus(ref) =>
-            ctx.log.info(
-              s"------- PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} ASKED STATUS --------"
-            )
+            ctx.log.info(s"PLUVIOMETER ${pluviometer.associatedZone.zoneId}-${pluviometer.pluviometerId} ASKED STATUS")
             ref ! Status(ctx.self, pluviometer.inAlarm)
             Behaviors.same
           case _ => Behaviors.unhandled

@@ -49,7 +49,7 @@ object ZoneControl:
         zoneState.pluviometers ! Pluviometer.GetStatus(
           ctx.messageAdapter[Pluviometer.DataResponse](PluviometerStatus.apply)
         )
-        ctx.log.info(s"------------ ZONE ${zoneState.zone.zoneId} RECEIVED FIRST ALARM - CHECK --------------")
+        ctx.log.info(s"ZONE ${zoneState.zone.zoneId} RECEIVED FIRST ALARM - CHECK")
         Behaviors.withStash(100) { stash =>
           preAlarm(stash, zoneState, Map(pluviometer -> true))
         }
@@ -68,13 +68,10 @@ object ZoneControl:
       val activeAlarmMap = updatedAlarmMap.filter((k, _) => zoneToCheck.pluviometers.contains(k))
       if activeAlarmMap.keys.size >= zoneToCheck.pluviometers.size then
         if activeAlarmMap.filter((_, v) => v).size >= Math.floor(zoneToCheck.pluviometers.size / 2) + 1 then
-          println(s"------------ ZONE ${zoneToCheck.zone.zoneId} ALAAAARMMMMMM --------------")
           val updatedZoneState = zoneToCheck.focus(_.zone).modify(_.focus(_.status).replace(ALARM()))
           updatedZoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
           stash.unstashAll(alarm(updatedZoneState))
-        else
-          println(s"------------ ZONE ${zoneToCheck.zone.zoneId} FALSE ALARM --------------")
-          stash.unstashAll(normal(zoneToCheck))
+        else stash.unstashAll(normal(zoneToCheck))
       else preAlarm(stash, zoneToCheck, updatedAlarmMap)
 
     Behaviors.receivePartial {
@@ -84,15 +81,11 @@ object ZoneControl:
           msg match
             case PluviometerStatus(Pluviometer.Status(p, isInAlarm)) =>
               val updateAlarmMap = alarmMap + (p -> isInAlarm)
-              ctx.log.info(
-                s"------------ ZONE ${zoneState.zone.zoneId} RECEIVED OTHER STUFF ${p -> isInAlarm} - CHECK --------------"
-              )
+              ctx.log.info(s"ZONE ${zoneState.zone.zoneId} RECEIVED STATUS ${p -> isInAlarm} - CHECK")
               _check(updateAlarmMap, zoneState)
             case Alarm(p) =>
               val updateAlarmMap = alarmMap + (p -> true)
-              ctx.log.info(
-                s"------------ ZONE ${zoneState.zone.zoneId} RECEIVED OTHER STUFF ${p -> true} - CHECK --------------"
-              )
+              ctx.log.info(s"ZONE ${zoneState.zone.zoneId} RECEIVED STATUS ${p -> true} - CHECK")
               _check(updateAlarmMap, zoneState)
             case other =>
               stash.stash(other)
@@ -110,7 +103,7 @@ object ZoneControl:
         update match
           case Firestation.UnderManagement =>
             val updatedZoneState = zoneState.focus(_.zone).modify(_.focus(_.status).replace(UNDER_MANAGEMENT()))
-            ctx.log.info(s"------------ ZONE ${zoneState.zone.zoneId} UNDER MANAGEMENT --------------")
+            ctx.log.info(s"ZONE ${zoneState.zone.zoneId} UNDER MANAGEMENT")
             updatedZoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
             alarmUnderManagement(updatedZoneState)
           case _ => Behaviors.same
@@ -125,7 +118,7 @@ object ZoneControl:
       .orElse { case (ctx, FirestationUpdate(update)) =>
         update match
           case Firestation.Solved =>
-            ctx.log.info(s"------------ ZONE ${zoneState.zone.zoneId} SOOOOLVEDDDD --------------")
+            ctx.log.info(s"ZONE ${zoneState.zone.zoneId} SOLVED")
             val updatedZoneState = zoneState.focus(_.zone).modify(_.focus(_.status).replace(NORMAL()))
             updatedZoneState.firestation.foreach(_ ! Firestation.UpdateZoneStatus(updatedZoneState.zone))
             normal(updatedZoneState)
