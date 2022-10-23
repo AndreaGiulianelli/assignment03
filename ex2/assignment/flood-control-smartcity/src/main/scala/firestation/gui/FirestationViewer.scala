@@ -71,7 +71,7 @@ object FirestationViewer:
         else if zone.status == UNDER_MANAGEMENT() then
           // solve
           firestation ! Firestation.AlarmSolved
-          managementBtn.setText("Management")
+          managementBtn.setText("Manage")
       }
 
       mainPanel.setLayout(mainLayout)
