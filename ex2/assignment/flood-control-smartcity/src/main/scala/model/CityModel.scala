@@ -14,10 +14,10 @@ object CityModel:
     def zones: Int
     /** The number of sensor for each zone
       * @return
-      *   the number of sensors for each zones
+      *   the number of sensors for each zone
       */
     def sensorPerZone: Int
-    /** The sense rate of the sensors
+    /** The sense rate of sensors
       * @return
       *   the sense rate in milliseconds
       */
