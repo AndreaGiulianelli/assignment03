@@ -106,7 +106,7 @@ object Firestation:
           // update the known firestations (excluding myself)
           val updatedActor = this.focus(_.firestations).replace(list.filter(_ != ctx.self))
           // send data to new firestations
-          list.diff(firestations) ! FirestationUpdate(ctx.self, firestation)
+          updatedActor.firestations.diff(firestations) ! FirestationUpdate(ctx.self, firestation)
           _changeState(updatedActor, firestation)
         case (_, FirestationUpdate(_, station)) =>
           viewer ! FirestationViewActor.Command.UpdateFirestation(station)
