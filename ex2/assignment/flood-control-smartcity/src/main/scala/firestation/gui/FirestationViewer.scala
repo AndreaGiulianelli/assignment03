@@ -22,7 +22,7 @@ object FirestationViewer:
       private var zone: Zone,
       width: Int,
       height: Int,
-      firestation: ActorRef[Firestation.Command]
+      firestationActor: ActorRef[Firestation.Command]
   ) extends JFrame
       with FirestationViewer:
 
@@ -66,11 +66,11 @@ object FirestationViewer:
       managementBtn.addActionListener { _ =>
         if zone.status == ALARM() then
           // set under management
-          firestation ! Firestation.AlarmUnderManagement
+          firestationActor ! Firestation.AlarmUnderManagement
           managementBtn.setText("Solve")
         else if zone.status == UNDER_MANAGEMENT() then
           // solve
-          firestation ! Firestation.AlarmSolved
+          firestationActor ! Firestation.AlarmSolved
           managementBtn.setText("Manage")
       }
 
