@@ -4,7 +4,7 @@ import akka.actor.typed.ActorRef
 import controller.Coordinator
 import model.{Boundary, P2d}
 import java.awt.event.{ActionEvent, WindowAdapter, WindowEvent}
-import java.awt.{BorderLayout, LayoutManager}
+import java.awt.BorderLayout
 import java.util
 import java.util.List
 import javax.swing.{JButton, JFrame, JPanel, SwingUtilities}
